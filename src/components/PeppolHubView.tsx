@@ -21,6 +21,7 @@ import { Button, IconButton } from './ui/Button';
 import { Badge, StatusDot } from './ui/Badge';
 import { Input } from './ui/Input';
 import { cn } from './ui/cn';
+import { EmptyState } from './ui/EmptyState';
 import { CodeChip } from './ui/Badge';
 
 interface PeppolHubViewProps {
@@ -294,7 +295,10 @@ export const PeppolHubView: React.FC<PeppolHubViewProps> = ({
                 Transmises
               </div>
               {peppolInvoices.length === 0 && (
-                <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">Aucune facture transmise pour l'instant.</p>
+                <EmptyState
+                  title="Aucune facture transmise"
+                  description="Envoyez votre première facture via le réseau Peppol BIS 3.0 (obligatoire B2B depuis 2026)."
+                />
               )}
               {peppolInvoices.map((inv) => (
                 <div

@@ -12,6 +12,7 @@ import { Input } from './ui/Input';
 import { Select } from './ui/Select';
 import { Field } from './ui/Field';
 import { DataTable, Th, Td, Tr } from './ui/DataTable';
+import { TableEmptyRow } from './ui/EmptyState';
 
 const CATEGORIES = ['Déclarations', 'Contrats', 'Reçus', 'Pièces bancaires', 'Correspondance', 'Autre'];
 
@@ -178,11 +179,7 @@ export function DocumentsView({ lang }: { lang: Language }) {
             </thead>
             <tbody>
               {documents.length === 0 && (
-                <Tr>
-                  <Td colSpan={5} align="center" className="py-6 text-[var(--text-tertiary)]">
-                    Aucun document partagé pour l'instant.
-                  </Td>
-                </Tr>
+                <TableEmptyRow colSpan={5}>Aucun document partagé pour l'instant.</TableEmptyRow>
               )}
               {documents.map((doc) => (
                 <Tr key={doc.id} interactive>
