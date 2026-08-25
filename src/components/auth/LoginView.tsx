@@ -5,11 +5,16 @@ import {
   Fingerprint,
   Landmark,
   Loader2,
+  Lock,
+  Mail,
   ShieldCheck,
+  UserPlus,
   Users,
 } from 'lucide-react';
 import { useSession } from '../../state/SessionContext';
 import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
+import { validateBCE } from '../../utils/belgianAccounting';
 
 /**
  * Authentication & workspace selector.
@@ -17,9 +22,18 @@ import { Button } from '../ui/Button';
  * (firm) portal — the heart of the "secure, well separated" requirement.
  */
 export function LoginView() {
-  const { loginDemo, loginItsme } = useSession();
-  const [busy, setBusy] = useState<'client' | 'cabinet' | 'itsme' | null>(null);
+  const { loginDemo, loginItsme, loginWithPassword, registerWithPassword } = useSession();
+  const [busy, setBusy] = useState<'client' | 'cabinet' | 'itsme' | 'password' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [bce, setBce] = useState('');
 
   const run = async (kind: 'client' | 'cabinet' | 'itsme') => {
     setBusy(kind);
@@ -31,6 +45,53 @@ export function LoginView() {
       setError(e instanceof Error ? e.message : 'Erreur de connexion.');
       setBusy(null);
     }
+  };
+
+  const submitPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) {
+      setError('Email et mot de passe requis.');
+      return;
+    }
+    if (mode === 'register') {
+      if (password.length < 10) {
+        setError('Le mot de passe doit contenir au moins 10 caractères.');
+        return;
+      }
+      if (password !== confirm) {
+        setError('Les mots de passe ne correspondent pas.');
+        return;
+      }
+      if (!validateBCE(bce.replace(/\s/g, '')).isValid) {
+        setError('Numéro BCE invalide (vérifiez le numéro à 10 chiffres).');
+        return;
+      }
+    }
+    setBusy('password');
+    try {
+      if (mode === 'login') await loginWithPassword(cleanEmail, password);
+      else
+        await registerWithPassword({
+          email: cleanEmail,
+          password,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          company: {
+            name: companyName.trim() || 'Nouvelle société',
+            bceNumber: bce.replace(/\s/g, ''),
+          },
+        });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur de connexion.');
+      setBusy(null);
+    }
+  };
+
+  const switchMode = (m: 'login' | 'register') => {
+    setMode(m);
+    setError(null);
   };
 
   return (
@@ -114,6 +175,137 @@ export function LoginView() {
             {busy === 'itsme' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Fingerprint className="h-3.5 w-3.5" />}
             S'identifier
           </Button>
+        </div>
+
+        {/* Password auth */}
+        <div className="mt-5 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+          <button
+            type="button"
+            onClick={() => setShowForm((s) => !s)}
+            className="w-full flex items-center justify-between gap-4 p-4 text-left"
+          >
+            <div className="flex items-center gap-3">
+              <Lock className="h-5 w-5 text-[var(--state-info-text)]" />
+              <div>
+                <div className="text-[length:var(--text-sm)] font-semibold text-[var(--text-primary)]">
+                  Connexion par email
+                </div>
+                <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                  Compte BRABO sécurisé (base PostgreSQL sur le serveur)
+                </div>
+              </div>
+            </div>
+            <span className="text-[length:var(--text-xs)] text-[var(--accent-solid)] font-semibold">
+              {showForm ? 'Masquer' : 'Ouvrir'}
+            </span>
+          </button>
+
+          {showForm && (
+            <form onSubmit={submitPassword} className="border-t border-[var(--border-subtle)] p-4 space-y-3">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => switchMode('login')}
+                  className={`flex-1 h-[var(--control-height)] rounded-[var(--radius-md)] text-[length:var(--text-xs)] font-semibold transition-colors ${
+                    mode === 'login'
+                      ? 'bg-[var(--accent-solid)] text-[var(--accent-text)]'
+                      : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                  }`}
+                >
+                  Se connecter
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchMode('register')}
+                  className={`flex-1 h-[var(--control-height)] rounded-[var(--radius-md)] text-[length:var(--text-xs)] font-semibold transition-colors ${
+                    mode === 'register'
+                      ? 'bg-[var(--accent-solid)] text-[var(--accent-text)]'
+                      : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                  }`}
+                >
+                  Créer un compte
+                </button>
+              </div>
+
+              {mode === 'register' && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <Input
+                      placeholder="Prénom"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="pl-7"
+                    />
+                    <UserPlus className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--text-tertiary)]" />
+                  </div>
+                  <Input
+                    placeholder="Nom"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                  />
+                  <Input
+                    className="col-span-2"
+                    placeholder="Nom de la société"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                  />
+                  <Input
+                    className="col-span-2"
+                    placeholder="Numéro BCE (ex. 0789.456.175)"
+                    value={bce}
+                    onChange={(e) => setBce(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--text-tertiary)]" />
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="pl-7"
+                  autoComplete="email"
+                />
+              </div>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--text-tertiary)]" />
+                <Input
+                  type="password"
+                  placeholder={mode === 'register' ? 'Mot de passe (min. 10 caractères)' : 'Mot de passe'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-7"
+                  autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+                />
+              </div>
+              {mode === 'register' && (
+                <div className="relative">
+                  <Lock className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--text-tertiary)]" />
+                  <Input
+                    type="password"
+                    placeholder="Confirmer le mot de passe"
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                    className="pl-7"
+                    autoComplete="new-password"
+                  />
+                </div>
+              )}
+
+              <Button type="submit" disabled={busy === 'password'} className="w-full">
+                {busy === 'password' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : mode === 'login' ? (
+                  <Lock className="h-3.5 w-3.5" />
+                ) : (
+                  <UserPlus className="h-3.5 w-3.5" />
+                )}
+                {mode === 'login' ? 'Se connecter' : 'Créer mon compte'}
+              </Button>
+            </form>
+          )}
         </div>
 
         {error && (

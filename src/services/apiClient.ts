@@ -5,11 +5,17 @@
  * app degrades gracefully to the local per-tenant store. Configure with:
  *   VITE_API_URL   (default: https://api.brabo.clixite-prod.cloud)
  *   VITE_API_TOKEN (shared bearer token — set in .env / Vercel env)
+ *
+ * Identity: once a user registers/logs in, a real JWT (HS256, 8h) is stored
+ * and sent as `Authorization: Bearer` on every call. Without a JWT the legacy
+ * shared token (X-BRABO-Token) is used so demo mode keeps working.
  */
 import type { CompanyProfile, Invoice, PurchaseExpense, BankTransaction } from '../types/accounting';
 
 const API_URL = (import.meta.env.VITE_API_URL as string) || 'https://api.brabo.clixite-prod.cloud';
 const API_TOKEN = (import.meta.env.VITE_API_TOKEN as string) || '';
+
+const JWT_KEY = 'brabo.jwt.v1';
 
 export interface LedgerPayload {
   company: CompanyProfile;
@@ -18,16 +24,92 @@ export interface LedgerPayload {
   transactions: BankTransaction[];
 }
 
-function headers(): Record<string, string> {
-  return {
-    'Content-Type': 'application/json',
-    'X-BRABO-Token': API_TOKEN,
-  };
+export interface AuthResponse {
+  token: string;
+  userId: string;
+  tenantId: string | null;
+  role: string;
 }
 
-/** True when the backend is configured (token set) and reachable. */
+export interface RegisterPayload {
+  email: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+  company: { name?: string; bceNumber: string; vatNumber?: string };
+}
+
+/** Stores the JWT for the signed-in user. */
+export function storeJwt(token: string): void {
+  try {
+    globalThis.localStorage?.setItem(JWT_KEY, token);
+  } catch {
+    /* storage unavailable — session-only auth */
+  }
+}
+
+/** Returns the stored JWT, or null when signed in with the shared token only. */
+export function getJwt(): string | null {
+  try {
+    return globalThis.localStorage?.getItem(JWT_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearJwt(): void {
+  try {
+    globalThis.localStorage?.removeItem(JWT_KEY);
+  } catch {
+    /* noop */
+  }
+}
+
+function headers(): Record<string, string> {
+  const h: Record<string, string> = { 'Content-Type': 'application/json' };
+  const jwt = getJwt();
+  if (jwt) h['Authorization'] = `Bearer ${jwt}`;
+  else h['X-BRABO-Token'] = API_TOKEN;
+  return h;
+}
+
+/** True when the backend is configured (token or JWT) and reachable. */
 export function isApiConfigured(): boolean {
-  return API_TOKEN.length > 0;
+  return API_TOKEN.length > 0 || getJwt() !== null;
+}
+
+/** Registers a new user + company on the backend and stores the JWT. */
+export async function apiRegister(payload: RegisterPayload): Promise<AuthResponse | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as AuthResponse;
+    storeJwt(data.token);
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+/** Logs in with email/password and stores the JWT. */
+export async function apiLogin(email: string, password: string): Promise<AuthResponse | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as AuthResponse;
+    storeJwt(data.token);
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 /** Fetches the full ledger for a tenant (by BCE digits) from the API. */

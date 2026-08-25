@@ -26,6 +26,7 @@ import { DEMO_USERS, resolveDemoUser, seedDemoData } from '../server/services/de
 import { PERMISSIONS, ROLES } from '../server/types/db';
 import type { Membership, Permission, Role, Tenant, User } from '../server/types/db';
 import type { Language } from '../i18n/translations';
+import { apiLogin, apiRegister, clearJwt, type RegisterPayload } from '../services/apiClient';
 
 export type SessionStatus = 'loading' | 'unauthenticated' | 'authenticated';
 export type SessionMode = 'client' | 'cabinet';
@@ -44,6 +45,10 @@ export interface SessionContextValue {
   canSelfDeclare: boolean;
   loginDemo: (kind: 'client' | 'cabinet') => Promise<void>;
   loginItsme: () => Promise<void>;
+  /** Real backend auth (PostgreSQL): email + password → JWT session. */
+  loginWithPassword: (email: string, password: string) => Promise<void>;
+  /** Real backend auth: creates the user + company tenant on the VPS. */
+  registerWithPassword: (payload: RegisterPayload) => Promise<void>;
   logout: () => void;
   switchTenant: (tenantId: string) => Promise<void>;
   /** True when the cabinet has opened a client's full workspace. */
@@ -175,7 +180,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     await loginDemo('client');
   }, [loginDemo]);
 
+  /**
+   * Real backend login (PostgreSQL). On success the JWT is stored and the user
+   * enters the client workspace; the local per-tenant store keeps serving the
+   * UI instantly while the API becomes the durable store for the tenant.
+   */
+  const loginWithPassword = useCallback(
+    async (email: string, password: string) => {
+      const auth = await apiLogin(email.trim(), password);
+      if (!auth) throw new Error('Connexion refusée : identifiants invalides ou API injoignable.');
+      await loginDemo('client');
+    },
+    [loginDemo],
+  );
+
+  const registerWithPassword = useCallback(
+    async (payload: RegisterPayload) => {
+      const auth = await apiRegister(payload);
+      if (!auth) throw new Error('Création de compte refusée : vérifiez vos informations.');
+      await loginDemo('client');
+    },
+    [loginDemo],
+  );
+
   const logout = useCallback(() => {
+    clearJwt();
     setUser(null);
     setMemberships([]);
     setTenants([]);
@@ -264,6 +293,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     canSelfDeclare,
     loginDemo,
     loginItsme,
+    loginWithPassword,
+    registerWithPassword,
     logout,
     switchTenant,
     forceClientWorkspace,
