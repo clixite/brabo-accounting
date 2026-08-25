@@ -3,7 +3,7 @@ import { Search, FileText, Receipt, Hash, CornerDownLeft, LayoutDashboard, Arrow
 import type { Invoice, ClientParty, CompanyProfile } from '../types/accounting';
 import type { Language } from '../i18n/translations';
 import { translations } from '../i18n/translations';
-import type { NavTab } from './Navigation';
+import type { NavTab } from '../types/navigation';
 import { cn } from './ui/cn';
 import { formatDate } from '../utils/format';
 

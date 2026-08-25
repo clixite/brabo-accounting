@@ -15,8 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import type { NavTab } from '../Navigation';
-// (temporary) NavTab lives in Navigation.tsx — will be moved later.
+import type { NavTab } from '../../types/navigation';
 import { cn } from '../ui/cn';
 
 export type NavGroup = {

@@ -7,7 +7,7 @@ import {
   INITIAL_BANK_TRANSACTIONS,
   MOCK_CLIENTS
 } from './data/mockBelgianData';
-import type { NavTab } from './components/Navigation';
+import type { NavTab } from './types/navigation';
 import { AppShell } from './components/shell/AppShell';
 import { validateInvoiceSchematron } from './services/schematronValidator';
 import type { ValidationReport } from './services/schematronValidator';

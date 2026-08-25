@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { CompanyProfile } from '../../types/accounting';
 import type { Language } from '../../i18n/translations';
 import { translations } from '../../i18n/translations';
-import type { NavTab } from '../Navigation';
+import type { NavTab } from '../../types/navigation';
 import { Sidebar, defaultNavGroups } from './Sidebar';
 import { Topbar } from './Topbar';
 import { useTheme } from '../../theme/useTheme';
