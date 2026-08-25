@@ -20,6 +20,7 @@ import { calculateVatGrids } from '../utils/belgianAccounting';
 import { Money } from './ui/Money';
 import { Badge } from './ui/Badge';
 import { cn } from './ui/cn';
+import { Sparkline } from './ui/Sparkline';
 import { formatDate, formatMoney } from '../utils/format';
 
 interface DashboardViewProps {
@@ -43,6 +44,7 @@ function KpiCard({
   tone,
   trend,
   trendTone = 'positive',
+  spark,
 }: {
   label: string;
   value: string;
@@ -51,6 +53,7 @@ function KpiCard({
   tone: 'blue' | 'emerald' | 'amber' | 'purple';
   trend?: string;
   trendTone?: 'positive' | 'negative';
+  spark?: number[];
 }) {
   const toneMap = {
     blue: 'text-[var(--state-info-text)] bg-[var(--state-info-bg)]',
@@ -86,6 +89,11 @@ function KpiCard({
               </span>
             )}
             {sub && <span className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">{sub}</span>}
+          </div>
+        )}
+        {spark && (
+          <div className="mt-2 -mb-1">
+            <Sparkline data={spark} />
           </div>
         )}
       </div>
@@ -192,6 +200,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           icon={<TrendingUp className="w-4 h-4" />}
           tone="blue"
           trend="+18% vs T4 2025"
+          spark={[4200, 5800, 3200, 4615, 8400, 12882, 14500]}
         />
         <KpiCard
           label={t.kpiTreasury}
@@ -199,6 +208,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           sub={`${company.iban.slice(0, 4)} ••• ${company.iban.slice(-4)}`}
           icon={<Landmark className="w-4 h-4" />}
           tone="emerald"
+          spark={[21400, 22800, 24150, 23600, 25200, 26600, bankBalance]}
         />
         <KpiCard
           label="Encaissement"
@@ -206,6 +216,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           sub={`dont ${formatMoney(totalOverdue)} en retard`}
           icon={<Clock className="w-4 h-4" />}
           tone="purple"
+          spark={[8409, 8228, 7540, 6910, 6450, 5720, totalOutstanding]}
         />
         <KpiCard
           label={t.kpiVatPayable}
@@ -213,6 +224,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           sub={vatIsCredit ? 'Crédit TVA à récupérer' : 'Grille 71 (à payer)'}
           icon={<Receipt className="w-4 h-4" />}
           tone="amber"
+          spark={[2100, 2600, 1459, 1980, 2236, 2450, vatDue]}
         />
       </div>
 
