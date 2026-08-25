@@ -158,6 +158,20 @@ export function ClientWorkspace() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsCommandPaletteOpen((v) => !v);
+        return;
+      }
+      // Alt+I → nouvelle facture ; Alt+E → scanner une dépense ; Alt+G → OGM.
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        if (e.key.toLowerCase() === 'i') {
+          e.preventDefault();
+          handleOpenNewInvoice();
+        } else if (e.key.toLowerCase() === 'e') {
+          e.preventDefault();
+          setIsExpenseModalOpen(true);
+        } else if (e.key.toLowerCase() === 'g') {
+          e.preventDefault();
+          setIsOgmModalOpen(true);
+        }
       }
     };
     window.addEventListener('keydown', onKey);

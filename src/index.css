@@ -157,3 +157,29 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ============================================================================
+   Print — document-friendly output (invoices, reports)
+   ========================================================================== */
+@media print {
+  aside,
+  header,
+  footer,
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+}
