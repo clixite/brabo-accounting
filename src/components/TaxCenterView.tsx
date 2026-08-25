@@ -174,26 +174,26 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2">
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[var(--accent-soft)] text-[var(--state-warning-text)] border border-[var(--accent-soft-border)]">
               SPF Finances / FOD Financiën
             </span>
-            <span className="text-xs text-slate-400">Portail Intervat, ISOC, ATN & INASTI</span>
+            <span className="text-xs text-[var(--text-tertiary)]">Portail Intervat, ISOC, ATN & INASTI</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center mt-1">
-            <Calculator className="w-6 h-6 mr-2 text-amber-400" />
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight flex items-center mt-1">
+            <Calculator className="w-6 h-6 mr-2 text-[var(--accent-solid)]" />
             {t.title}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-[var(--text-tertiary)] mt-1">
             {t.subtitle}
           </p>
         </div>
 
         {/* Tab Buttons */}
-        <div className="flex flex-wrap bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs gap-1">
+        <div className="flex flex-wrap bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-1 rounded-[var(--radius-md)] text-xs gap-1">
           <button
             onClick={() => setActiveTab('vat')}
             className={`px-3 py-1.5 rounded-lg font-semibold transition ${
-              activeTab === 'vat' ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-white'
+              activeTab === 'vat' ? 'bg-[var(--accent-solid)] text-[var(--accent-text)] font-bold shadow' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
             }`}
           >
             TVA (Grilles 00-72)
@@ -201,7 +201,7 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
           <button
             onClick={() => setActiveTab('listing')}
             className={`px-3 py-1.5 rounded-lg font-semibold transition ${
-              activeTab === 'listing' ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-white'
+              activeTab === 'listing' ? 'bg-[var(--accent-solid)] text-[var(--accent-text)] font-bold shadow' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
             }`}
           >
             Listing Clients
@@ -209,7 +209,7 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
           <button
             onClick={() => setActiveTab('social')}
             className={`px-3 py-1.5 rounded-lg font-semibold transition ${
-              activeTab === 'social' ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-white'
+              activeTab === 'social' ? 'bg-[var(--accent-solid)] text-[var(--accent-text)] font-bold shadow' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
             }`}
           >
             INASTI & PLCI
@@ -217,7 +217,7 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
           <button
             onClick={() => setActiveTab('isoc')}
             className={`px-3 py-1.5 rounded-lg font-semibold transition ${
-              activeTab === 'isoc' ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-white'
+              activeTab === 'isoc' ? 'bg-[var(--accent-solid)] text-[var(--accent-text)] font-bold shadow' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
             }`}
           >
             ISOC (20%/25%)
@@ -225,7 +225,7 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
           <button
             onClick={() => setActiveTab('atn')}
             className={`px-3 py-1.5 rounded-lg font-semibold transition ${
-              activeTab === 'atn' ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-white'
+              activeTab === 'atn' ? 'bg-[var(--accent-solid)] text-[var(--accent-text)] font-bold shadow' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
             }`}
           >
             ATN Voiture
@@ -233,13 +233,13 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
           <button
             onClick={() => setActiveTab('audit')}
             className={`px-3 py-1.5 rounded-lg font-semibold transition flex items-center space-x-1 ${
-              activeTab === 'audit' ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-white'
+              activeTab === 'audit' ? 'bg-[var(--accent-solid)] text-[var(--accent-text)] font-bold shadow' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
             }`}
           >
             <ShieldAlert className="w-3.5 h-3.5" />
             <span>Audit Fiscal</span>
             {fiscalAudit.totalErrors > 0 && (
-              <span className={`px-1.5 rounded-full text-[10px] font-bold ${activeTab === 'audit' ? 'bg-slate-950 text-amber-300' : 'bg-red-500/20 text-red-300'}`}>
+              <span className={`px-1.5 rounded-full text-[10px] font-bold ${activeTab === 'audit' ? 'bg-[var(--bg-sunken)] text-[var(--state-warning-text)]' : 'bg-[var(--state-critical-bg)] text-[var(--state-critical-text)]'}`}>
                 {fiscalAudit.totalErrors}
               </span>
             )}
@@ -251,56 +251,56 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
       {activeTab === 'vat' && (
         <div className="space-y-6">
           
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-5 shadow-[var(--shadow)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <span className="text-xs text-slate-400 block font-medium">Période de déclaration :</span>
+              <span className="text-xs text-[var(--text-tertiary)] block font-medium">Période de déclaration :</span>
               <div className="flex items-center space-x-3 mt-1">
                 <select
                   value={selectedPeriod}
                   onChange={(e) => setSelectedPeriod(e.target.value)}
-                  className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-amber-300 font-bold focus:outline-none focus:border-amber-500"
+                  className="bg-[var(--bg-sunken)] border border-[var(--border-default)] rounded-[var(--radius-md)] px-3 py-1.5 text-xs text-[var(--state-warning-text)] font-bold focus:outline-none focus:border-[var(--border-focus)]"
                 >
                   <option value="2026-Q1">1er Trimestre 2026 (Jan - Mar)</option>
                   <option value="2026-Q2">2ème Trimestre 2026 (Avr - Jun)</option>
                   <option value="2026-Q3">3ème Trimestre 2026 (Jul - Sep)</option>
                   <option value="2026-Q4">4ème Trimestre 2026 (Oct - Déc)</option>
                 </select>
-                <span className="text-xs text-slate-400">Échéance de dépôt : 20 Avril 2026</span>
+                <span className="text-xs text-[var(--text-tertiary)]">Échéance de dépôt : 20 Avril 2026</span>
               </div>
             </div>
 
-            <div className={`px-5 py-3 rounded-xl border text-right ${
+            <div className={`px-5 py-3 rounded-[var(--radius-md)] border text-right ${
               vatDeclaration.grid71 > 0 
-                ? 'bg-amber-950/40 border-amber-500/40' 
-                : 'bg-emerald-950/40 border-emerald-500/40'
+                ? 'bg-[var(--state-warning-bg)] border-[var(--accent-soft-border)]' 
+                : 'bg-[var(--state-positive-bg)] border-[var(--state-positive-border)]'
             }`}>
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">
+              <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">
                 {vatDeclaration.grid71 > 0 ? 'Solde à payer à l\'État (Grille 71)' : 'Solde à récupérer (Grille 72)'}
               </span>
-              <span className="text-2xl font-mono font-black text-amber-300">
+              <span className="text-2xl font-mono font-black text-[var(--state-warning-text)]">
                 {(vatDeclaration.grid71 > 0 ? vatDeclaration.grid71 : vatDeclaration.grid72).toFixed(2)} €
               </span>
             </div>
           </div>
 
           {/* VAT filing — gated on the self-filing right granted by the cabinet */}
-          <div className={`rounded-2xl border p-5 ${
-            canSelfDeclare ? 'bg-emerald-950/20 border-emerald-500/30' : 'bg-slate-900/70 border-slate-700/60'
+          <div className={`rounded-[var(--radius-lg)] border p-5 ${
+            canSelfDeclare ? 'bg-emerald-950/20 border-[var(--state-positive-border)]' : 'bg-[var(--bg-surface)]/70 border-[var(--border-default)]'
           }`}>
             {canSelfDeclare ? (
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <ShieldCheck className="w-5 h-5 text-[var(--state-positive-text)] shrink-0 mt-0.5" />
                   <div>
-                    <div className="text-sm font-bold text-emerald-300">Déclaration TVA autonome activée</div>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <div className="text-sm font-bold text-[var(--state-positive-text)]">Déclaration TVA autonome activée</div>
+                    <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
                       Votre cabinet vous a accordé le droit de déposer vous-même la déclaration périodique {selectedPeriod}.
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {submittedPeriod === selectedPeriod ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/40">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] bg-[var(--state-positive-bg)] text-[var(--state-positive-text)] text-xs font-bold border border-[var(--state-positive-border)]">
                       <CheckCircle2 className="h-4 w-4" /> Déposée sur Intervat
                     </span>
                   ) : (
@@ -308,7 +308,7 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
                       onClick={handleSubmitVat}
                       disabled={submitting || fiscalAudit.totalErrors > 0}
                       title={fiscalAudit.totalErrors > 0 ? 'Corrigez d\'abord les anomalies bloquantes' : 'Déposer la déclaration'}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-md shadow-emerald-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] bg-[var(--state-positive-solid)] hover:bg-[var(--state-positive-solid)] text-[var(--accent-text)] text-xs font-bold shadow-[var(--shadow)] shadow-[var(--shadow)] transition disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                       Déposer la déclaration TVA (Intervat)
@@ -319,21 +319,21 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
             ) : (
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <ShieldOff className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
+                  <ShieldOff className="w-5 h-5 text-[var(--text-tertiary)] shrink-0 mt-0.5" />
                   <div>
-                    <div className="text-sm font-bold text-slate-300">Déclaration TVA déposée par votre cabinet</div>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <div className="text-sm font-bold text-[var(--text-secondary)]">Déclaration TVA déposée par votre cabinet</div>
+                    <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
                       Votre expert-comptable ITAA pilote la déclaration. Vous pouvez consulter les grilles, mais seul le cabinet peut déposer — contactez-le pour obtenir l'accès autonome.
                     </p>
                   </div>
                 </div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 text-xs font-semibold shrink-0">
+                <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-md)] bg-[var(--bg-subtle)] border border-[var(--border-default)] text-[var(--text-tertiary)] text-xs font-semibold shrink-0">
                   <Lock className="h-4 w-4" /> Accès réservé au cabinet
                 </span>
               </div>
             )}
             {submitError && (
-              <p className="mt-3 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+              <p className="mt-3 text-xs text-[var(--state-critical-text)] bg-[var(--state-critical-bg)] border border-red-500/20 rounded-lg px-3 py-2">
                 {submitError}
               </p>
             )}
@@ -343,56 +343,56 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
             
             <div className="space-y-6">
               
-              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
-                <h3 className="text-xs font-bold text-amber-300 uppercase tracking-wider border-b border-slate-800 pb-2">
+              <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-5 shadow-[var(--shadow)] space-y-3">
+                <h3 className="text-xs font-bold text-[var(--state-warning-text)] uppercase tracking-wider border-b border-[var(--border-subtle)] pb-2">
                   {t.cadreSales}
                 </h3>
 
                 <div className="space-y-2 text-xs">
-                  <div className="flex justify-between items-center bg-slate-800/40 p-2.5 rounded-lg border border-slate-800">
-                    <span className="text-slate-300">Grille [00] — Opérations au taux de 0%</span>
-                    <span className="font-mono font-bold text-white">{vatDeclaration.grid00.toFixed(2)} €</span>
+                  <div className="flex justify-between items-center bg-[var(--bg-subtle)] p-2.5 rounded-lg border border-[var(--border-subtle)]">
+                    <span className="text-[var(--text-secondary)]">Grille [00] — Opérations au taux de 0%</span>
+                    <span className="font-mono font-bold text-[var(--text-primary)]">{vatDeclaration.grid00.toFixed(2)} €</span>
                   </div>
-                  <div className="flex justify-between items-center bg-slate-800/40 p-2.5 rounded-lg border border-slate-800">
-                    <span className="text-slate-300">Grille [01] — Opérations au taux de 6%</span>
-                    <span className="font-mono font-bold text-white">{vatDeclaration.grid01.toFixed(2)} €</span>
+                  <div className="flex justify-between items-center bg-[var(--bg-subtle)] p-2.5 rounded-lg border border-[var(--border-subtle)]">
+                    <span className="text-[var(--text-secondary)]">Grille [01] — Opérations au taux de 6%</span>
+                    <span className="font-mono font-bold text-[var(--text-primary)]">{vatDeclaration.grid01.toFixed(2)} €</span>
                   </div>
-                  <div className="flex justify-between items-center bg-slate-800/40 p-2.5 rounded-lg border border-slate-800">
-                    <span className="text-slate-300">Grille [02] — Opérations au taux de 12%</span>
-                    <span className="font-mono font-bold text-white">{vatDeclaration.grid02.toFixed(2)} €</span>
+                  <div className="flex justify-between items-center bg-[var(--bg-subtle)] p-2.5 rounded-lg border border-[var(--border-subtle)]">
+                    <span className="text-[var(--text-secondary)]">Grille [02] — Opérations au taux de 12%</span>
+                    <span className="font-mono font-bold text-[var(--text-primary)]">{vatDeclaration.grid02.toFixed(2)} €</span>
                   </div>
-                  <div className="flex justify-between items-center bg-slate-800/70 p-2.5 rounded-lg border border-amber-500/30">
-                    <span className="text-amber-200 font-semibold">Grille [03] — Opérations au taux de 21%</span>
-                    <span className="font-mono font-extrabold text-amber-300">{vatDeclaration.grid03.toFixed(2)} €</span>
+                  <div className="flex justify-between items-center bg-[var(--bg-hover)] p-2.5 rounded-lg border border-[var(--accent-soft-border)]">
+                    <span className="text-[var(--state-warning-text)] font-semibold">Grille [03] — Opérations au taux de 21%</span>
+                    <span className="font-mono font-extrabold text-[var(--state-warning-text)]">{vatDeclaration.grid03.toFixed(2)} €</span>
                   </div>
-                  <div className="flex justify-between items-center bg-slate-800/40 p-2.5 rounded-lg border border-slate-800">
-                    <span className="text-slate-300">Grille [44] — Services Intracommunautaires (Art. 21 §2)</span>
-                    <span className="font-mono font-bold text-white">{vatDeclaration.grid44.toFixed(2)} €</span>
+                  <div className="flex justify-between items-center bg-[var(--bg-subtle)] p-2.5 rounded-lg border border-[var(--border-subtle)]">
+                    <span className="text-[var(--text-secondary)]">Grille [44] — Services Intracommunautaires (Art. 21 §2)</span>
+                    <span className="font-mono font-bold text-[var(--text-primary)]">{vatDeclaration.grid44.toFixed(2)} €</span>
                   </div>
-                  <div className="flex justify-between items-center bg-slate-800/40 p-2.5 rounded-lg border border-slate-800">
-                    <span className="text-slate-300">Grille [45] — Opérations Cocontractant (Art. 20)</span>
-                    <span className="font-mono font-bold text-white">{vatDeclaration.grid45.toFixed(2)} €</span>
+                  <div className="flex justify-between items-center bg-[var(--bg-subtle)] p-2.5 rounded-lg border border-[var(--border-subtle)]">
+                    <span className="text-[var(--text-secondary)]">Grille [45] — Opérations Cocontractant (Art. 20)</span>
+                    <span className="font-mono font-bold text-[var(--text-primary)]">{vatDeclaration.grid45.toFixed(2)} €</span>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
-                <h3 className="text-xs font-bold text-amber-300 uppercase tracking-wider border-b border-slate-800 pb-2">
+              <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-5 shadow-[var(--shadow)] space-y-3">
+                <h3 className="text-xs font-bold text-[var(--state-warning-text)] uppercase tracking-wider border-b border-[var(--border-subtle)] pb-2">
                   {t.cadreDueVat}
                 </h3>
 
                 <div className="space-y-2 text-xs">
-                  <div className="flex justify-between items-center bg-slate-800/70 p-2.5 rounded-lg border border-amber-500/30">
-                    <span className="text-amber-200 font-semibold">Grille [54] — TVA due sur opérations des grilles 01, 02, 03</span>
-                    <span className="font-mono font-extrabold text-amber-300">{vatDeclaration.grid54.toFixed(2)} €</span>
+                  <div className="flex justify-between items-center bg-[var(--bg-hover)] p-2.5 rounded-lg border border-[var(--accent-soft-border)]">
+                    <span className="text-[var(--state-warning-text)] font-semibold">Grille [54] — TVA due sur opérations des grilles 01, 02, 03</span>
+                    <span className="font-mono font-extrabold text-[var(--state-warning-text)]">{vatDeclaration.grid54.toFixed(2)} €</span>
                   </div>
-                  <div className="flex justify-between items-center bg-slate-800/40 p-2.5 rounded-lg border border-slate-800">
-                    <span className="text-slate-300">Grille [55] — TVA due sur acquisitions intracommunautaires</span>
-                    <span className="font-mono font-bold text-white">{vatDeclaration.grid55.toFixed(2)} €</span>
+                  <div className="flex justify-between items-center bg-[var(--bg-subtle)] p-2.5 rounded-lg border border-[var(--border-subtle)]">
+                    <span className="text-[var(--text-secondary)]">Grille [55] — TVA due sur acquisitions intracommunautaires</span>
+                    <span className="font-mono font-bold text-[var(--text-primary)]">{vatDeclaration.grid55.toFixed(2)} €</span>
                   </div>
-                  <div className="flex justify-between items-center bg-slate-800/40 p-2.5 rounded-lg border border-slate-800">
-                    <span className="text-slate-300">Grille [56] — TVA due sur opérations cocontractant</span>
-                    <span className="font-mono font-bold text-white">{vatDeclaration.grid56.toFixed(2)} €</span>
+                  <div className="flex justify-between items-center bg-[var(--bg-subtle)] p-2.5 rounded-lg border border-[var(--border-subtle)]">
+                    <span className="text-[var(--text-secondary)]">Grille [56] — TVA due sur opérations cocontractant</span>
+                    <span className="font-mono font-bold text-[var(--text-primary)]">{vatDeclaration.grid56.toFixed(2)} €</span>
                   </div>
                 </div>
               </div>
@@ -401,51 +401,51 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
 
             <div className="space-y-6">
               
-              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
-                <h3 className="text-xs font-bold text-amber-300 uppercase tracking-wider border-b border-slate-800 pb-2">
+              <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-5 shadow-[var(--shadow)] space-y-3">
+                <h3 className="text-xs font-bold text-[var(--state-warning-text)] uppercase tracking-wider border-b border-[var(--border-subtle)] pb-2">
                   {t.cadrePurchases}
                 </h3>
 
                 <div className="space-y-2 text-xs">
-                  <div className="flex justify-between items-center bg-slate-800/40 p-2.5 rounded-lg border border-slate-800">
-                    <span className="text-slate-300">Grille [81] — Marchandises, matières premières (PCMN 60)</span>
-                    <span className="font-mono font-bold text-white">{vatDeclaration.grid81.toFixed(2)} €</span>
+                  <div className="flex justify-between items-center bg-[var(--bg-subtle)] p-2.5 rounded-lg border border-[var(--border-subtle)]">
+                    <span className="text-[var(--text-secondary)]">Grille [81] — Marchandises, matières premières (PCMN 60)</span>
+                    <span className="font-mono font-bold text-[var(--text-primary)]">{vatDeclaration.grid81.toFixed(2)} €</span>
                   </div>
-                  <div className="flex justify-between items-center bg-slate-800/40 p-2.5 rounded-lg border border-slate-800">
-                    <span className="text-slate-300">Grille [82] — Services et biens divers (PCMN 61)</span>
-                    <span className="font-mono font-bold text-white">{vatDeclaration.grid82.toFixed(2)} €</span>
+                  <div className="flex justify-between items-center bg-[var(--bg-subtle)] p-2.5 rounded-lg border border-[var(--border-subtle)]">
+                    <span className="text-[var(--text-secondary)]">Grille [82] — Services et biens divers (PCMN 61)</span>
+                    <span className="font-mono font-bold text-[var(--text-primary)]">{vatDeclaration.grid82.toFixed(2)} €</span>
                   </div>
-                  <div className="flex justify-between items-center bg-slate-800/40 p-2.5 rounded-lg border border-slate-800">
-                    <span className="text-slate-300">Grille [83] — Biens d'investissement (PCMN 2x)</span>
-                    <span className="font-mono font-bold text-white">{vatDeclaration.grid83.toFixed(2)} €</span>
+                  <div className="flex justify-between items-center bg-[var(--bg-subtle)] p-2.5 rounded-lg border border-[var(--border-subtle)]">
+                    <span className="text-[var(--text-secondary)]">Grille [83] — Biens d'investissement (PCMN 2x)</span>
+                    <span className="font-mono font-bold text-[var(--text-primary)]">{vatDeclaration.grid83.toFixed(2)} €</span>
                   </div>
-                  <div className="flex justify-between items-center bg-slate-800/70 p-2.5 rounded-lg border border-emerald-500/30">
-                    <span className="text-emerald-300 font-bold">Grille [59] — Total TVA Déductible</span>
-                    <span className="font-mono font-extrabold text-emerald-400">{vatDeclaration.grid59.toFixed(2)} €</span>
+                  <div className="flex justify-between items-center bg-[var(--bg-hover)] p-2.5 rounded-lg border border-[var(--state-positive-border)]">
+                    <span className="text-[var(--state-positive-text)] font-bold">Grille [59] — Total TVA Déductible</span>
+                    <span className="font-mono font-extrabold text-[var(--state-positive-text)]">{vatDeclaration.grid59.toFixed(2)} €</span>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
-                <h3 className="text-xs font-bold text-amber-300 uppercase tracking-wider border-b border-slate-800 pb-2">
+              <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-5 shadow-[var(--shadow)] space-y-3">
+                <h3 className="text-xs font-bold text-[var(--state-warning-text)] uppercase tracking-wider border-b border-[var(--border-subtle)] pb-2">
                   {t.cadreBalance}
                 </h3>
 
                 <div className="space-y-3 text-xs">
-                  <div className="p-3 bg-slate-850 rounded-xl border border-slate-700/60 flex justify-between items-center">
+                  <div className="p-3 bg-[var(--bg-hover)] rounded-[var(--radius-md)] border border-[var(--border-default)] flex justify-between items-center">
                     <div>
-                      <span className="font-bold text-white block">Grille [71] — TVA due à l'État</span>
-                      <span className="text-[10px] text-slate-400">Total taxes dues [54+55+56] - TVA déductible [59]</span>
+                      <span className="font-bold text-[var(--text-primary)] block">Grille [71] — TVA due à l'État</span>
+                      <span className="text-[10px] text-[var(--text-tertiary)]">Total taxes dues [54+55+56] - TVA déductible [59]</span>
                     </div>
-                    <span className="font-mono text-lg font-black text-amber-400">{vatDeclaration.grid71.toFixed(2)} €</span>
+                    <span className="font-mono text-lg font-black text-[var(--accent-solid)]">{vatDeclaration.grid71.toFixed(2)} €</span>
                   </div>
 
-                  <div className="p-3 bg-slate-850 rounded-xl border border-slate-700/60 flex justify-between items-center">
+                  <div className="p-3 bg-[var(--bg-hover)] rounded-[var(--radius-md)] border border-[var(--border-default)] flex justify-between items-center">
                     <div>
-                      <span className="font-bold text-white block">Grille [72] — TVA à récupérer par l'assujetti</span>
-                      <span className="text-[10px] text-slate-400">Excédent de taxe déductible reporté</span>
+                      <span className="font-bold text-[var(--text-primary)] block">Grille [72] — TVA à récupérer par l'assujetti</span>
+                      <span className="text-[10px] text-[var(--text-tertiary)]">Excédent de taxe déductible reporté</span>
                     </div>
-                    <span className="font-mono text-lg font-black text-emerald-400">{vatDeclaration.grid72.toFixed(2)} €</span>
+                    <span className="font-mono text-lg font-black text-[var(--state-positive-text)]">{vatDeclaration.grid72.toFixed(2)} €</span>
                   </div>
                 </div>
               </div>
@@ -460,22 +460,22 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
       {/* TAB 2: CLIENT LISTING */}
       {activeTab === 'listing' && (
         <div className="space-y-6">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800 pb-4">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 shadow-[var(--shadow-popover)] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">
               <div>
-                <h3 className="text-base font-bold text-white flex items-center">
-                  <Users className="w-5 h-5 mr-2 text-amber-400" />
+                <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center">
+                  <Users className="w-5 h-5 mr-2 text-[var(--accent-solid)]" />
                   Listing Annuel des Clients Assujettis (Année 2026)
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">
-                  Seuls les clients belges assujettis avec un chiffre d'affaires supérieur à <strong className="text-white">250,00 € HTVA</strong> sont repris (Obligation légale SPF Finances).
+                <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                  Seuls les clients belges assujettis avec un chiffre d'affaires supérieur à <strong className="text-[var(--text-primary)]">250,00 € HTVA</strong> sont repris (Obligation légale SPF Finances).
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={handleDownloadIntervatListing}
-                  className="inline-flex items-center px-4 py-2 text-xs font-bold rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition self-start sm:self-auto"
+                  className="inline-flex items-center px-4 py-2 text-xs font-bold rounded-[var(--radius-md)] bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] shadow-[var(--shadow)] shadow-[var(--shadow)] transition self-start sm:self-auto"
                 >
                   <Download className="w-4 h-4 mr-1.5" />
                   {t.generateIntervatXml}
@@ -483,17 +483,17 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
 
                 <button
                   onClick={handleDownloadBelcotax}
-                  className="inline-flex items-center px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-blue-500/40 transition self-start sm:self-auto"
+                  className="inline-flex items-center px-4 py-2 text-xs font-bold rounded-[var(--radius-md)] bg-[var(--bg-subtle)] hover:bg-slate-700 text-[var(--text-primary)] border border-[var(--border-default)] hover:border-blue-500/40 transition self-start sm:self-auto"
                 >
-                  <FileText className="w-4 h-4 mr-1.5 text-blue-400" />
+                  <FileText className="w-4 h-4 mr-1.5 text-[var(--state-info-text)]" />
                   Fiche 281.50 (Belcotax)
                 </button>
               </div>
             </div>
 
-            <div className="border border-slate-800 rounded-xl overflow-hidden">
-              <table className="w-full text-left text-xs text-slate-300">
-                <thead className="bg-slate-850 text-slate-400 font-semibold border-b border-slate-800 uppercase text-[10px] tracking-wider">
+            <div className="border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden">
+              <table className="w-full text-left text-xs text-[var(--text-secondary)]">
+                <thead className="bg-[var(--bg-hover)] text-[var(--text-tertiary)] font-semibold border-b border-[var(--border-subtle)] uppercase text-[10px] tracking-wider">
                   <tr>
                     <th className="p-3 pl-4">N° BCE / TVA</th>
                     <th className="p-3">Raison Sociale</th>
@@ -505,26 +505,26 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
                   {clientListing.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-slate-800/40 transition">
-                      <td className="p-3 pl-4 font-mono text-amber-400 font-semibold">{item.clientBce}</td>
-                      <td className="p-3 font-semibold text-white">{item.clientName}</td>
-                      <td className="p-3 text-slate-400">{item.postalCode} {item.city}</td>
+                    <tr key={idx} className="hover:bg-[var(--bg-subtle)] transition">
+                      <td className="p-3 pl-4 font-mono text-[var(--accent-solid)] font-semibold">{item.clientBce}</td>
+                      <td className="p-3 font-semibold text-[var(--text-primary)]">{item.clientName}</td>
+                      <td className="p-3 text-[var(--text-tertiary)]">{item.postalCode} {item.city}</td>
                       <td className="p-3 text-center font-mono">{item.invoiceCount}</td>
-                      <td className="p-3 text-right font-mono font-bold text-white">{item.totalTurnoverExclVat.toFixed(2)} €</td>
-                      <td className="p-3 pr-4 text-right font-mono font-bold text-amber-300">{item.totalVatCharged.toFixed(2)} €</td>
+                      <td className="p-3 text-right font-mono font-bold text-[var(--text-primary)]">{item.totalTurnoverExclVat.toFixed(2)} €</td>
+                      <td className="p-3 pr-4 text-right font-mono font-bold text-[var(--state-warning-text)]">{item.totalVatCharged.toFixed(2)} €</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            <div className="flex justify-between items-center bg-slate-800/60 p-4 rounded-xl border border-slate-700/60 text-xs">
-              <span className="font-semibold text-slate-300">
-                Total clients assujettis déclarés : <strong className="text-white">{clientListing.length}</strong>
+            <div className="flex justify-between items-center bg-[var(--bg-subtle)] p-4 rounded-[var(--radius-md)] border border-[var(--border-default)] text-xs">
+              <span className="font-semibold text-[var(--text-secondary)]">
+                Total clients assujettis déclarés : <strong className="text-[var(--text-primary)]">{clientListing.length}</strong>
               </span>
               <div className="space-x-4">
-                <span className="text-slate-400">Total CA : <strong className="font-mono text-white text-sm">{clientListing.reduce((a, c) => a + c.totalTurnoverExclVat, 0).toFixed(2)} €</strong></span>
-                <span className="text-slate-400">Total TVA : <strong className="font-mono text-amber-400 text-sm">{clientListing.reduce((a, c) => a + c.totalVatCharged, 0).toFixed(2)} €</strong></span>
+                <span className="text-[var(--text-tertiary)]">Total CA : <strong className="font-mono text-[var(--text-primary)] text-sm">{clientListing.reduce((a, c) => a + c.totalTurnoverExclVat, 0).toFixed(2)} €</strong></span>
+                <span className="text-[var(--text-tertiary)]">Total TVA : <strong className="font-mono text-[var(--accent-solid)] text-sm">{clientListing.reduce((a, c) => a + c.totalVatCharged, 0).toFixed(2)} €</strong></span>
               </div>
             </div>
           </div>
@@ -534,23 +534,23 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
       {/* TAB 3: SOCIAL CONTRIBUTIONS */}
       {activeTab === 'social' && (
         <div className="space-y-6">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 shadow-[var(--shadow-popover)] space-y-6">
             
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-4">
               <div>
-                <h3 className="text-base font-bold text-white flex items-center">
-                  <PiggyBank className="w-5 h-5 mr-2 text-amber-400" />
+                <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center">
+                  <PiggyBank className="w-5 h-5 mr-2 text-[var(--accent-solid)]" />
                   Simulateur Cotisations Sociales Belges & Optimisation PLCI / VAPZ
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-[var(--text-tertiary)] mt-1">
                   Barèmes officiels INASTI / RSVZ 2026 (20,50% jusqu'au 1er plafond, 14,16% jusqu'au 2ème).
                 </p>
               </div>
             </div>
 
-            <div className="bg-slate-800/60 p-5 rounded-xl border border-slate-700/60 space-y-3">
+            <div className="bg-[var(--bg-subtle)] p-5 rounded-[var(--radius-md)] border border-[var(--border-default)] space-y-3">
               <div className="flex justify-between items-center">
-                <label className="text-xs font-bold text-slate-200">
+                <label className="text-xs font-bold text-[var(--text-primary)]">
                   Revenu net imposable annuel estimé (€) :
                 </label>
                 <div className="flex items-center space-x-2">
@@ -558,9 +558,9 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
                     type="number"
                     value={netIncomeInput}
                     onChange={(e) => setNetIncomeInput(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="w-32 bg-slate-950 border border-slate-700 rounded-lg px-3 py-1 text-sm font-mono font-bold text-amber-400 text-right"
+                    className="w-32 bg-[var(--bg-sunken)] border border-[var(--border-default)] rounded-lg px-3 py-1 text-sm font-mono font-bold text-[var(--accent-solid)] text-right"
                   />
-                  <span className="text-xs text-slate-400">€/an</span>
+                  <span className="text-xs text-[var(--text-tertiary)]">€/an</span>
                 </div>
               </div>
 
@@ -571,54 +571,54 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
                 step="1000"
                 value={netIncomeInput}
                 onChange={(e) => setNetIncomeInput(parseInt(e.target.value))}
-                className="w-full accent-amber-500 cursor-pointer"
+                className="w-full accent-[var(--accent-solid)] cursor-pointer"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-              <div className="bg-slate-850 p-4 rounded-xl border border-slate-800">
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Cotisation Trimestrielle</span>
-                <span className="text-xl font-mono font-extrabold text-amber-400 mt-1 block">
+              <div className="bg-[var(--bg-hover)] p-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+                <span className="text-[var(--text-tertiary)] block text-[10px] uppercase font-bold">Cotisation Trimestrielle</span>
+                <span className="text-xl font-mono font-extrabold text-[var(--accent-solid)] mt-1 block">
                   {socialSimulation.totalQuarterlyPayment.toFixed(2)} €
                 </span>
-                <span className="text-[10px] text-slate-500 mt-1 block">
+                <span className="text-[10px] text-[var(--text-disabled)] mt-1 block">
                   Inclut frais de gestion caisse (3.05%)
                 </span>
               </div>
 
-              <div className="bg-slate-850 p-4 rounded-xl border border-slate-800">
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Cotisation Annuelle Totale</span>
-                <span className="text-xl font-mono font-extrabold text-white mt-1 block">
+              <div className="bg-[var(--bg-hover)] p-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+                <span className="text-[var(--text-tertiary)] block text-[10px] uppercase font-bold">Cotisation Annuelle Totale</span>
+                <span className="text-xl font-mono font-extrabold text-[var(--text-primary)] mt-1 block">
                   {socialSimulation.totalAnnualPayment.toFixed(2)} €
                 </span>
-                <span className="text-[10px] text-slate-500 mt-1 block">
+                <span className="text-[10px] text-[var(--text-disabled)] mt-1 block">
                   100% déductible comme charge pro
                 </span>
               </div>
 
-              <div className="bg-slate-850 p-4 rounded-xl border border-emerald-500/30">
-                <span className="text-emerald-300 block text-[10px] uppercase font-bold">Plafond PLCI / VAPZ Max (8.17%)</span>
-                <span className="text-xl font-mono font-extrabold text-emerald-400 mt-1 block">
+              <div className="bg-[var(--bg-hover)] p-4 rounded-[var(--radius-md)] border border-[var(--state-positive-border)]">
+                <span className="text-[var(--state-positive-text)] block text-[10px] uppercase font-bold">Plafond PLCI / VAPZ Max (8.17%)</span>
+                <span className="text-xl font-mono font-extrabold text-[var(--state-positive-text)] mt-1 block">
                   {socialSimulation.vapzMaxDeductible.toFixed(2)} €
                 </span>
-                <span className="text-[10px] text-slate-400 mt-1 block">
+                <span className="text-[10px] text-[var(--text-tertiary)] mt-1 block">
                   Pension complémentaire défiscalisée
                 </span>
               </div>
 
-              <div className="bg-slate-850 p-4 rounded-xl border border-emerald-500/30">
-                <span className="text-emerald-300 block text-[10px] uppercase font-bold">Économie d'impôt IPP estimée</span>
-                <span className="text-xl font-mono font-extrabold text-emerald-300 mt-1 block">
+              <div className="bg-[var(--bg-hover)] p-4 rounded-[var(--radius-md)] border border-[var(--state-positive-border)]">
+                <span className="text-[var(--state-positive-text)] block text-[10px] uppercase font-bold">Économie d'impôt IPP estimée</span>
+                <span className="text-xl font-mono font-extrabold text-[var(--state-positive-text)] mt-1 block">
                   ~ {socialSimulation.taxShieldSavingsEstimate.toFixed(2)} €
                 </span>
-                <span className="text-[10px] text-emerald-400/80 mt-1 block">
+                <span className="text-[10px] text-[var(--state-positive-text)]/80 mt-1 block">
                   À la tranche marginale belge de 53.5%
                 </span>
               </div>
             </div>
 
-            <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/60 text-xs text-slate-300 space-y-1">
-              <span className="font-bold text-amber-300 block">💡 Conseil d'optimisation fiscale belge :</span>
+            <div className="p-4 bg-[var(--bg-subtle)] rounded-[var(--radius-md)] border border-[var(--border-default)] text-xs text-[var(--text-secondary)] space-y-1">
+              <span className="font-bold text-[var(--state-warning-text)] block">💡 Conseil d'optimisation fiscale belge :</span>
               <p className="leading-relaxed">
                 Verser le montant maximum de votre PLCI (VAPZ) permet non seulement de réduire votre base imposable à l'impôt des personnes physiques (tranche marginale de 50% + taxes communales), mais diminue également l'assiette de calcul de vos futures cotisations sociales de l'année N+3.
               </p>
@@ -631,27 +631,27 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
       {/* TAB 4: ISOC CORPORATE TAX SIMULATOR */}
       {activeTab === 'isoc' && (
         <div className="space-y-6">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 text-xs text-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 shadow-[var(--shadow-popover)] space-y-6 text-xs text-[var(--text-primary)]">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-4">
               <div>
-                <h3 className="text-base font-bold text-white flex items-center">
-                  <Building className="w-5 h-5 mr-2 text-amber-400" />
+                <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center">
+                  <Building className="w-5 h-5 mr-2 text-[var(--accent-solid)]" />
                   Simulateur Impôt des Sociétés (ISOC / VenB) & Taux Réduit PME (20%)
                 </h3>
-                <p className="text-slate-400 mt-1">
+                <p className="text-[var(--text-tertiary)] mt-1">
                   Article 215 du CIR 92 : Taux réduit de 20% sur la 1ère tranche de 100.000 € de bénéfice réservé aux PME.
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-800/60 p-5 rounded-xl border border-slate-700/60">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-[var(--bg-subtle)] p-5 rounded-[var(--radius-md)] border border-[var(--border-default)]">
               <div>
-                <label className="block text-slate-300 font-bold mb-1">Bénéfice imposable de la société (€) :</label>
+                <label className="block text-[var(--text-secondary)] font-bold mb-1">Bénéfice imposable de la société (€) :</label>
                 <input
                   type="number"
                   value={isocTaxableProfit}
                   onChange={(e) => setIsocTaxableProfit(Math.max(0, parseInt(e.target.value) || 0))}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono font-bold text-sm focus:border-amber-500 focus:outline-none"
+                  className="w-full bg-[var(--bg-sunken)] border border-[var(--border-default)] rounded-lg px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:border-[var(--border-focus)] focus:outline-none"
                 />
               </div>
 
@@ -661,66 +661,66 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
                   id="dirSalary"
                   checked={hasDirectorRemuneration45k}
                   onChange={(e) => setHasDirectorRemuneration45k(e.target.checked)}
-                  className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                  className="w-4 h-4 accent-[var(--accent-solid)] rounded cursor-pointer"
                 />
-                <label htmlFor="dirSalary" className="text-slate-300 cursor-pointer">
-                  <strong className="text-white">Rémunération dirigeant ≥ 45.000 €</strong> (Condition légale taux réduit 20%)
+                <label htmlFor="dirSalary" className="text-[var(--text-secondary)] cursor-pointer">
+                  <strong className="text-[var(--text-primary)]">Rémunération dirigeant ≥ 45.000 €</strong> (Condition légale taux réduit 20%)
                 </label>
               </div>
             </div>
 
             {/* ISOC Comparison Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-slate-850 p-4 rounded-xl border border-slate-800">
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Impôt Société Dû (ISOC)</span>
-                <span className="text-2xl font-mono font-black text-amber-400 mt-1 block">
+              <div className="bg-[var(--bg-hover)] p-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+                <span className="text-[var(--text-tertiary)] block text-[10px] uppercase font-bold">Impôt Société Dû (ISOC)</span>
+                <span className="text-2xl font-mono font-black text-[var(--accent-solid)] mt-1 block">
                   {isocTaxAmount.toFixed(2)} €
                 </span>
-                <span className="text-[10px] text-slate-500 mt-1 block">
+                <span className="text-[10px] text-[var(--text-disabled)] mt-1 block">
                   Taux effectif : {((isocTaxAmount / (isocTaxableProfit || 1)) * 100).toFixed(1)}%
                 </span>
               </div>
 
-              <div className="bg-slate-850 p-4 rounded-xl border border-slate-800">
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">Bénéfice Net Après ISOC</span>
-                <span className="text-2xl font-mono font-black text-emerald-400 mt-1 block">
+              <div className="bg-[var(--bg-hover)] p-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+                <span className="text-[var(--text-tertiary)] block text-[10px] uppercase font-bold">Bénéfice Net Après ISOC</span>
+                <span className="text-2xl font-mono font-black text-[var(--state-positive-text)] mt-1 block">
                   {(isocTaxableProfit - isocTaxAmount).toFixed(2)} €
                 </span>
-                <span className="text-[10px] text-slate-500 mt-1 block">
+                <span className="text-[10px] text-[var(--text-disabled)] mt-1 block">
                   Disponible pour dividendes VVPR-bis
                 </span>
               </div>
 
-              <div className="bg-slate-850 p-4 rounded-xl border border-emerald-500/30">
-                <span className="text-emerald-300 block text-[10px] uppercase font-bold">Économie Taux Réduit PME (20%)</span>
-                <span className="text-2xl font-mono font-black text-emerald-300 mt-1 block">
+              <div className="bg-[var(--bg-hover)] p-4 rounded-[var(--radius-md)] border border-[var(--state-positive-border)]">
+                <span className="text-[var(--state-positive-text)] block text-[10px] uppercase font-bold">Économie Taux Réduit PME (20%)</span>
+                <span className="text-2xl font-mono font-black text-[var(--state-positive-text)] mt-1 block">
                   {isocSavings.toFixed(2)} €
                 </span>
-                <span className="text-[10px] text-emerald-400/80 mt-1 block">
+                <span className="text-[10px] text-[var(--state-positive-text)]/80 mt-1 block">
                   Par rapport au taux standard de 25%
                 </span>
               </div>
             </div>
 
             {/* Dividend regimes comparison */}
-            <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/60 space-y-3">
-              <span className="font-bold text-amber-300 block">📊 Comparatif Régimes de Distribution de Dividendes :</span>
+            <div className="bg-[var(--bg-subtle)] p-4 rounded-[var(--radius-md)] border border-[var(--border-default)] space-y-3">
+              <span className="font-bold text-[var(--state-warning-text)] block">📊 Comparatif Régimes de Distribution de Dividendes :</span>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
-                  <span className="font-bold text-emerald-400 block">VVPR-bis (15% précompte)</span>
-                  <p className="text-[11px] text-slate-400 mt-1">
+                <div className="p-3 bg-[var(--bg-surface)] rounded-lg border border-[var(--border-subtle)]">
+                  <span className="font-bold text-[var(--state-positive-text)] block">VVPR-bis (15% précompte)</span>
+                  <p className="text-[11px] text-[var(--text-tertiary)] mt-1">
                     Sociétés constituées après le 01/07/2013 avec actions nominatives nouvelles libérées (dividende de l'année N+3).
                   </p>
                 </div>
-                <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
-                  <span className="font-bold text-blue-400 block">Réserve de Liquidation (10% + 5%)</span>
-                  <p className="text-[11px] text-slate-400 mt-1">
+                <div className="p-3 bg-[var(--bg-surface)] rounded-lg border border-[var(--border-subtle)]">
+                  <span className="font-bold text-[var(--state-info-text)] block">Réserve de Liquidation (10% + 5%)</span>
+                  <p className="text-[11px] text-[var(--text-tertiary)] mt-1">
                     Constitution immédiate à 10% + distribution après 5 ans d'attente à 5% de précompte mobilier.
                   </p>
                 </div>
-                <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
-                  <span className="font-bold text-slate-400 block">Dividende Ordinaire (30%)</span>
-                  <p className="text-[11px] text-slate-500 mt-1">
+                <div className="p-3 bg-[var(--bg-surface)] rounded-lg border border-[var(--border-subtle)]">
+                  <span className="font-bold text-[var(--text-tertiary)] block">Dividende Ordinaire (30%)</span>
+                  <p className="text-[11px] text-[var(--text-disabled)] mt-1">
                     Taux standard belge sans condition particulière de délai ou de capital.
                   </p>
                 </div>
@@ -734,32 +734,32 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
       {/* TAB 5: ATN CAR SIMULATOR */}
       {activeTab === 'atn' && (
         <div className="space-y-6">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 text-xs text-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 shadow-[var(--shadow-popover)] space-y-6 text-xs text-[var(--text-primary)]">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-4">
               <div>
-                <h3 className="text-base font-bold text-white flex items-center">
-                  <Car className="w-5 h-5 mr-2 text-amber-400" />
+                <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center">
+                  <Car className="w-5 h-5 mr-2 text-[var(--accent-solid)]" />
                   Simulateur Avantage de Toute Nature (ATN / VAA) Voiture de Société
                 </h3>
-                <p className="text-slate-400 mt-1">
+                <p className="text-[var(--text-tertiary)] mt-1">
                   Formule fiscale officielle belge : Valeur catalogue × Coeff. âge × % CO2 × 6/7 (Minimum 1.600 € / an).
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-slate-800/60 p-5 rounded-xl border border-slate-700/60">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-[var(--bg-subtle)] p-5 rounded-[var(--radius-md)] border border-[var(--border-default)]">
               <div>
-                <label className="block text-slate-300 font-bold mb-1">Prix Catalogue TVAC (€)</label>
+                <label className="block text-[var(--text-secondary)] font-bold mb-1">Prix Catalogue TVAC (€)</label>
                 <input
                   type="number"
                   value={carCatalogValue}
                   onChange={(e) => setCarCatalogValue(Math.max(0, parseInt(e.target.value) || 0))}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-white font-mono text-sm"
+                  className="w-full bg-[var(--bg-sunken)] border border-[var(--border-default)] rounded-lg px-3 py-1.5 text-[var(--text-primary)] font-mono text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-300 font-bold mb-1">Motorisation</label>
+                <label className="block text-[var(--text-secondary)] font-bold mb-1">Motorisation</label>
                 <select
                   value={carFuelType}
                   onChange={(e) => {
@@ -769,7 +769,7 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
                     else if (f === 'petrol') setCarCo2(115);
                     else setCarCo2(95);
                   }}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white"
+                  className="w-full bg-[var(--bg-sunken)] border border-[var(--border-default)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-primary)]"
                 >
                   <option value="electric">100% Électrique (CO2 = 0g)</option>
                   <option value="petrol">Essence / Hybride</option>
@@ -778,55 +778,55 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-slate-300 font-bold mb-1">Émissions CO2 (g/km)</label>
+                <label className="block text-[var(--text-secondary)] font-bold mb-1">Émissions CO2 (g/km)</label>
                 <input
                   type="number"
                   disabled={carFuelType === 'electric'}
                   value={carCo2}
                   onChange={(e) => setCarCo2(parseInt(e.target.value) || 0)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-white font-mono text-sm disabled:opacity-50"
+                  className="w-full bg-[var(--bg-sunken)] border border-[var(--border-default)] rounded-lg px-3 py-1.5 text-[var(--text-primary)] font-mono text-sm disabled:opacity-50"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-300 font-bold mb-1">Âge du véhicule (mois)</label>
+                <label className="block text-[var(--text-secondary)] font-bold mb-1">Âge du véhicule (mois)</label>
                 <input
                   type="number"
                   value={carAgeMonths}
                   onChange={(e) => setCarAgeMonths(parseInt(e.target.value) || 0)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-white font-mono text-sm"
+                  className="w-full bg-[var(--bg-sunken)] border border-[var(--border-default)] rounded-lg px-3 py-1.5 text-[var(--text-primary)] font-mono text-sm"
                 />
               </div>
             </div>
 
             {/* ATN Results */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-slate-850 p-4 rounded-xl border border-slate-800">
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">ATN Mensuel Imposable</span>
-                <span className="text-2xl font-mono font-black text-amber-400 mt-1 block">
+              <div className="bg-[var(--bg-hover)] p-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+                <span className="text-[var(--text-tertiary)] block text-[10px] uppercase font-bold">ATN Mensuel Imposable</span>
+                <span className="text-2xl font-mono font-black text-[var(--accent-solid)] mt-1 block">
                   {monthlyAtn.toFixed(2)} € / mois
                 </span>
-                <span className="text-[10px] text-slate-500 mt-1 block">
+                <span className="text-[10px] text-[var(--text-disabled)] mt-1 block">
                   Ajouté à la fiche de paie 281.20 / 281.10
                 </span>
               </div>
 
-              <div className="bg-slate-850 p-4 rounded-xl border border-slate-800">
-                <span className="text-slate-400 block text-[10px] uppercase font-bold">ATN Annuel Total</span>
-                <span className="text-2xl font-mono font-black text-white mt-1 block">
+              <div className="bg-[var(--bg-hover)] p-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+                <span className="text-[var(--text-tertiary)] block text-[10px] uppercase font-bold">ATN Annuel Total</span>
+                <span className="text-2xl font-mono font-black text-[var(--text-primary)] mt-1 block">
                   {finalAnnualAtn.toFixed(2)} € / an
                 </span>
-                <span className="text-[10px] text-slate-500 mt-1 block">
+                <span className="text-[10px] text-[var(--text-disabled)] mt-1 block">
                   Taux CO2 appliqué : {co2Percentage.toFixed(1)}%
                 </span>
               </div>
 
-              <div className="bg-slate-850 p-4 rounded-xl border border-emerald-500/30">
-                <span className="text-emerald-300 block text-[10px] uppercase font-bold">Déductibilité Fiscale Véhicule</span>
-                <span className="text-2xl font-mono font-black text-emerald-400 mt-1 block">
+              <div className="bg-[var(--bg-hover)] p-4 rounded-[var(--radius-md)] border border-[var(--state-positive-border)]">
+                <span className="text-[var(--state-positive-text)] block text-[10px] uppercase font-bold">Déductibilité Fiscale Véhicule</span>
+                <span className="text-2xl font-mono font-black text-[var(--state-positive-text)] mt-1 block">
                   {carFuelType === 'electric' ? '100% Déductible' : '50% à 75%'}
                 </span>
-                <span className="text-[10px] text-emerald-400/80 mt-1 block">
+                <span className="text-[10px] text-[var(--state-positive-text)]/80 mt-1 block">
                   Frais déductibles dans la société
                 </span>
               </div>
@@ -839,27 +839,27 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
       {/* TAB 6: FISCAL AUDIT */}
       {activeTab === 'audit' && (
         <div className="space-y-6">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 text-xs text-slate-200">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800 pb-4">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6 shadow-[var(--shadow-popover)] space-y-6 text-xs text-[var(--text-primary)]">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">
               <div>
-                <h3 className="text-base font-bold text-white flex items-center">
-                  <ShieldAlert className="w-5 h-5 mr-2 text-amber-400" />
+                <h3 className="text-base font-bold text-[var(--text-primary)] flex items-center">
+                  <ShieldAlert className="w-5 h-5 mr-2 text-[var(--accent-solid)]" />
                   Audit Fiscal Pré-Déclaration (Conformité TVA Belge)
                 </h3>
-                <p className="text-slate-400 mt-1">
+                <p className="text-[var(--text-tertiary)] mt-1">
                   Contrôles automatiques de cohérence TVA, BCE, déductibilité et seuils légaux avant le dépôt de votre déclaration.
                 </p>
               </div>
 
               {/* Risk score */}
-              <div className={`px-5 py-3 rounded-xl border text-right ${
+              <div className={`px-5 py-3 rounded-[var(--radius-md)] border text-right ${
                 fiscalAudit.riskScore >= 20 ? 'bg-red-950/40 border-red-500/40' :
-                fiscalAudit.riskScore >= 5 ? 'bg-amber-950/40 border-amber-500/40' :
-                'bg-emerald-950/40 border-emerald-500/40'
+                fiscalAudit.riskScore >= 5 ? 'bg-[var(--state-warning-bg)] border-[var(--accent-soft-border)]' :
+                'bg-[var(--state-positive-bg)] border-[var(--state-positive-border)]'
               }`}>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">Score de risque fiscal</span>
+                <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block">Score de risque fiscal</span>
                 <span className={`text-2xl font-mono font-black ${
-                  fiscalAudit.riskScore >= 20 ? 'text-red-400' : fiscalAudit.riskScore >= 5 ? 'text-amber-300' : 'text-emerald-400'
+                  fiscalAudit.riskScore >= 20 ? 'text-[var(--state-critical-text)]' : fiscalAudit.riskScore >= 5 ? 'text-[var(--state-warning-text)]' : 'text-[var(--state-positive-text)]'
                 }`}>
                   {fiscalAudit.riskScore}/100
                 </span>
@@ -868,38 +868,38 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
 
             {/* Summary counters */}
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-red-950/30 border border-red-500/30 p-3 rounded-xl text-center">
-                <span className="text-red-400 text-2xl font-mono font-black block">{fiscalAudit.totalErrors}</span>
-                <span className="text-red-300/70 text-[10px] uppercase font-bold">Anomalies bloquantes</span>
+              <div className="bg-[var(--state-critical-bg)] border border-[var(--state-critical-border)] p-3 rounded-[var(--radius-md)] text-center">
+                <span className="text-[var(--state-critical-text)] text-2xl font-mono font-black block">{fiscalAudit.totalErrors}</span>
+                <span className="text-[var(--state-critical-text)]/70 text-[10px] uppercase font-bold">Anomalies bloquantes</span>
               </div>
-              <div className="bg-amber-950/30 border border-amber-500/30 p-3 rounded-xl text-center">
-                <span className="text-amber-400 text-2xl font-mono font-black block">{fiscalAudit.totalWarnings}</span>
-                <span className="text-amber-300/70 text-[10px] uppercase font-bold">Avertissements</span>
+              <div className="bg-amber-950/30 border border-[var(--accent-soft-border)] p-3 rounded-[var(--radius-md)] text-center">
+                <span className="text-[var(--accent-solid)] text-2xl font-mono font-black block">{fiscalAudit.totalWarnings}</span>
+                <span className="text-[var(--state-warning-text)]/70 text-[10px] uppercase font-bold">Avertissements</span>
               </div>
-              <div className="bg-blue-950/30 border border-blue-500/30 p-3 rounded-xl text-center">
-                <span className="text-blue-400 text-2xl font-mono font-black block">{fiscalAudit.infos.length}</span>
-                <span className="text-blue-300/70 text-[10px] uppercase font-bold">Notes informatives</span>
+              <div className="bg-blue-950/30 border border-[var(--state-info-border)] p-3 rounded-[var(--radius-md)] text-center">
+                <span className="text-[var(--state-info-text)] text-2xl font-mono font-black block">{fiscalAudit.infos.length}</span>
+                <span className="text-[var(--state-info-text)]/70 text-[10px] uppercase font-bold">Notes informatives</span>
               </div>
             </div>
 
             {/* Issues list */}
             <div className="space-y-2">
               {fiscalAudit.issues.length === 0 ? (
-                <div className="p-6 text-center bg-emerald-950/30 border border-emerald-500/30 rounded-xl">
-                  <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-2" />
-                  <span className="font-bold text-emerald-300">Aucune anomalie détectée</span>
+                <div className="p-6 text-center bg-[var(--state-positive-bg)] border border-[var(--state-positive-border)] rounded-[var(--radius-md)]">
+                  <CheckCircle2 className="w-10 h-10 text-[var(--state-positive-text)] mx-auto mb-2" />
+                  <span className="font-bold text-[var(--state-positive-text)]">Aucune anomalie détectée</span>
                 </div>
               ) : (
                 fiscalAudit.issues.map((issue, idx) => (
-                  <div key={idx} className={`p-3 rounded-xl border flex items-start space-x-3 ${
-                    issue.severity === 'error' ? 'bg-red-950/20 border-red-500/30 text-red-200' :
-                    issue.severity === 'warning' ? 'bg-amber-950/20 border-amber-500/30 text-amber-200' :
-                    'bg-blue-950/20 border-blue-500/30 text-blue-200'
+                  <div key={idx} className={`p-3 rounded-[var(--radius-md)] border flex items-start space-x-3 ${
+                    issue.severity === 'error' ? 'bg-red-950/20 border-[var(--state-critical-border)] text-red-200' :
+                    issue.severity === 'warning' ? 'bg-[var(--state-warning-bg)] border-[var(--accent-soft-border)] text-[var(--state-warning-text)]' :
+                    'bg-blue-950/20 border-[var(--state-info-border)] text-blue-200'
                   }`}>
                     <div className="shrink-0 mt-0.5">
-                      {issue.severity === 'error' ? <AlertTriangle className="w-4 h-4 text-red-400" /> :
-                       issue.severity === 'warning' ? <AlertTriangle className="w-4 h-4 text-amber-400" /> :
-                       <Info className="w-4 h-4 text-blue-400" />}
+                      {issue.severity === 'error' ? <AlertTriangle className="w-4 h-4 text-[var(--state-critical-text)]" /> :
+                       issue.severity === 'warning' ? <AlertTriangle className="w-4 h-4 text-[var(--accent-solid)]" /> :
+                       <Info className="w-4 h-4 text-[var(--state-info-text)]" />}
                     </div>
                     <div className="flex-1">
                       <span className="font-mono font-bold text-[10px] opacity-70">{issue.code}</span>
@@ -914,12 +914,12 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
             </div>
 
             {/* Recommendations */}
-            <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/60 space-y-2">
-              <span className="font-bold text-amber-300 block">💡 Recommandations :</span>
-              <ul className="space-y-1 text-slate-300">
+            <div className="bg-[var(--bg-subtle)] p-4 rounded-[var(--radius-md)] border border-[var(--border-default)] space-y-2">
+              <span className="font-bold text-[var(--state-warning-text)] block">💡 Recommandations :</span>
+              <ul className="space-y-1 text-[var(--text-secondary)]">
                 {fiscalAudit.recommendations.map((rec, idx) => (
                   <li key={idx} className="flex items-start space-x-2">
-                    <span className="text-amber-400 mt-0.5">→</span>
+                    <span className="text-[var(--accent-solid)] mt-0.5">→</span>
                     <span className="leading-relaxed">{rec}</span>
                   </li>
                 ))}
