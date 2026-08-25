@@ -412,6 +412,16 @@ export function ClientWorkspace() {
             company={company}
             lang={lang}
             onUpdateCompany={setCompany}
+            invoices={invoices}
+            purchases={purchases}
+            transactions={transactions}
+            onRestoreBackup={(b) => {
+              setCompany(b.company);
+              setInvoices(b.invoices);
+              setPurchases(b.purchases);
+              setTransactions(b.transactions);
+              toast.push('success', 'Sauvegarde restaurée', `${b.invoices.length} factures · ${b.purchases.length} dépenses · ${b.transactions.length} opérations.`);
+            }}
           />
         )}
 

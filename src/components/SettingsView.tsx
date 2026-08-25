@@ -6,12 +6,14 @@ import {
   BookOpen, 
   Save, 
   CheckCircle2, 
-  Landmark
+  Landmark,
+  Download,
+  Upload,
+  Database
 } from 'lucide-react';
-import type { CompanyProfile } from '../types/accounting';
+import type { CompanyProfile, Invoice, PurchaseExpense, BankTransaction } from '../types/accounting';
 import type { Language } from '../i18n/translations';
 import { BELGIAN_PCMN_ACCOUNTS, validateBCE } from '../utils/belgianAccounting';
-import confetti from 'canvas-confetti';
 import { Card, CardHeader, CardBody } from './ui/Card';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
@@ -20,21 +22,36 @@ import { Select } from './ui/Select';
 import { Field } from './ui/Field';
 import { DataTable, Th, Td, Tr } from './ui/DataTable';
 import { cn } from './ui/cn';
+import { exportBackup, parseBackupFile } from '../services/backupService';
 
 interface SettingsViewProps {
   company: CompanyProfile;
   lang: Language;
   onUpdateCompany: (updated: CompanyProfile) => void;
+  invoices?: Invoice[];
+  purchases?: PurchaseExpense[];
+  transactions?: BankTransaction[];
+  onRestoreBackup?: (backup: {
+    company: CompanyProfile;
+    invoices: Invoice[];
+    purchases: PurchaseExpense[];
+    transactions: BankTransaction[];
+  }) => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   company,
   onUpdateCompany,
+  invoices = [],
+  purchases = [],
+  transactions = [],
+  onRestoreBackup,
 }) => {
   const [formData, setFormData] = useState<CompanyProfile>({ ...company });
-  const [activeTab, setActiveTab] = useState<'profile' | 'pcmn'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'pcmn' | 'backup'>('profile');
   const [pcmnSearch, setPcmnSearch] = useState('');
   const [savedNotice, setSavedNotice] = useState(false);
+  const [restoreNotice, setRestoreNotice] = useState<string | null>(null);
 
   const bceVal = validateBCE(formData.bceNumber);
 
@@ -43,7 +60,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     onUpdateCompany(formData);
     setSavedNotice(true);
     setTimeout(() => setSavedNotice(false), 3000);
-    confetti({ particleCount: 40, spread: 50, origin: { y: 0.7 } });
+  };
+
+  const handleExport = () => {
+    exportBackup(company, invoices, purchases, transactions);
+    setRestoreNotice('Sauvegarde JSON téléchargée.');
+    setTimeout(() => setRestoreNotice(null), 3000);
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const backup = await parseBackupFile(file);
+      onRestoreBackup?.({
+        company: backup.company,
+        invoices: backup.invoices,
+        purchases: backup.purchases,
+        transactions: backup.transactions,
+      });
+      setRestoreNotice(`Sauvegarde restaurée : ${backup.invoices.length} factures, ${backup.purchases.length} dépenses, ${backup.transactions.length} opérations.`);
+    } catch (err) {
+      setRestoreNotice(err instanceof Error ? `Échec de la restauration : ${err.message}` : 'Échec de la restauration.');
+    }
+    setTimeout(() => setRestoreNotice(null), 5000);
+    e.target.value = '';
   };
 
   const filteredPcmn = BELGIAN_PCMN_ACCOUNTS.filter(a => 
@@ -96,6 +137,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             )}
           >
             Plan Comptable PCMN
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('backup')}
+            className={cn(
+              'h-[var(--control-height-sm)] px-3 rounded-[var(--radius-sm)]',
+              'text-[length:var(--text-xs)] font-semibold transition-colors',
+              activeTab === 'backup'
+                ? 'bg-[var(--accent-solid)] text-[var(--accent-text)]'
+                : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
+            )}
+          >
+            Sauvegarde
           </button>
         </div>
       </div>
@@ -389,6 +443,65 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               ))}
             </tbody>
           </DataTable>
+        </Card>
+      )}
+
+      {activeTab === 'backup' && (
+        <Card>
+          <CardHeader
+            title={
+              <span className="inline-flex items-center gap-2">
+                <Database className="w-4 h-4 text-[var(--text-tertiary)]" />
+                Sauvegarde & Restauration
+              </span>
+            }
+            description="Exportez l'intégralité du dossier (factures, dépenses, banque, entité) ou restaurez une sauvegarde JSON."
+          />
+          <CardBody className="space-y-4">
+            {restoreNotice && (
+              <div className="flex items-center gap-2 p-3 rounded-[var(--radius-md)] bg-[var(--state-positive-bg)] border border-[var(--state-positive-border)] text-[length:var(--text-xs)] text-[var(--state-positive-text)]">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{restoreNotice}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-sunken)] space-y-2">
+                <div className="flex items-center gap-2 text-[length:var(--text-xs)] font-semibold text-[var(--text-primary)]">
+                  <Download className="w-4 h-4 text-[var(--accent-solid)]" />
+                  Exporter
+                </div>
+                <p className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                  {invoices.length} factures · {purchases.length} dépenses · {transactions.length} opérations bancaires
+                </p>
+                <Button variant="primary" onClick={handleExport}>
+                  <Download className="w-4 h-4" />
+                  Télécharger la sauvegarde JSON
+                </Button>
+              </div>
+
+              <div className="p-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-sunken)] space-y-2">
+                <div className="flex items-center gap-2 text-[length:var(--text-xs)] font-semibold text-[var(--text-primary)]">
+                  <Upload className="w-4 h-4 text-[var(--state-info-text)]" />
+                  Restaurer
+                </div>
+                <p className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                  Remplace le dossier courant par le contenu de la sauvegarde.
+                </p>
+                <label className="cursor-pointer">
+                  <Button variant="secondary" className="w-full" type="button">
+                    <Upload className="w-4 h-4" />
+                    Choisir un fichier .json
+                  </Button>
+                  <input type="file" accept=".json" className="hidden" onChange={handleImport} />
+                </label>
+              </div>
+            </div>
+
+            <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+              💡 Les données restent chiffrées et stockées localement (IndexedDB / localStorage). L'export JSON est portable et compatible entre comptes.
+            </div>
+          </CardBody>
         </Card>
       )}
 
