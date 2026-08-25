@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { X, Network, Download, Copy, Check, ShieldCheck, Code } from 'lucide-react';
+import { Network, Download, Copy, Check, ShieldCheck, Code } from 'lucide-react';
+import { Modal } from './ui/Modal';
+import { Button } from './ui/Button';
+import { Badge, CodeChip, StatusDot } from './ui/Badge';
 import type { Invoice, CompanyProfile } from '../types/accounting';
 import { generatePeppolBIS30UBL } from '../utils/belgianAccounting';
 
@@ -18,7 +21,6 @@ export const PeppolViewerModal: React.FC<PeppolViewerModalProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
 
-  if (!isOpen) return null;
 
   const ublXml = generatePeppolBIS30UBL(invoice, company);
 
@@ -40,110 +42,76 @@ export const PeppolViewerModal: React.FC<PeppolViewerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150 text-slate-200">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-850">
-          <div className="flex items-center space-x-2.5">
-            <div className="p-2 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
-              <Network className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-base font-bold text-white">Inspecteur Peppol BIS Billing 3.0 (UBL 2.1)</h2>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  EN 16931 Validé
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">
-                Facture n° <strong className="text-white">{invoice.invoiceNumber}</strong> pour <strong className="text-white">{invoice.client.name}</strong>
-              </p>
-            </div>
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title={
+        <span className="inline-flex items-center gap-2">
+          <Network className="w-4 h-4 text-[var(--text-tertiary)]" />
+          Peppol UBL (BIS 3.0)
+        </span>
+      }
+      description={`Facture ${invoice.invoiceNumber} — ${invoice.client.name}`}
+      width="xl"
+      footer={
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Badge tone="info" dot>
+              UBL 2.1
+            </Badge>
+            <StatusDot tone="positive">EN 16931</StatusDot>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" type="button" onClick={handleDownloadXml}>
+              <Download className="w-4 h-4" />
+              Télécharger
+            </Button>
+            <Button variant="primary" type="button" onClick={handleCopy}>
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? 'Copié' : 'Copier'}
+            </Button>
+          </div>
         </div>
-
-        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-          
-          {/* Peppol Metadata Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60 text-xs">
-            <div>
-              <span className="text-slate-400 block text-[10px]">Émetteur (Fournisseur)</span>
-              <span className="font-semibold text-white truncate block">{company.name}</span>
-              <span className="font-mono text-amber-400 text-[11px]">0208:{company.bceNumber.replace(/[^0-9]/g, '')}</span>
-            </div>
-            <div>
-              <span className="text-slate-400 block text-[10px]">Destinataire (Acheteur)</span>
-              <span className="font-semibold text-white truncate block">{invoice.client.name}</span>
-              <span className="font-mono text-amber-400 text-[11px]">0208:{invoice.client.bceNumber.replace(/[^0-9]/g, '')}</span>
-            </div>
-            <div>
-              <span className="text-slate-400 block text-[10px]">Communication OGM</span>
-              <span className="font-mono font-bold text-white text-[11px]">{invoice.structuredCommunication}</span>
-              <span className="text-[10px] text-emerald-400 block">✓ Inclus dans PaymentMeans</span>
-            </div>
+      }
+    >
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-subtle)] text-[length:var(--text-xs)]">
+          <div>
+            <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Émetteur</div>
+            <div className="mt-0.5 font-medium text-[var(--text-primary)] truncate">{company.name}</div>
+            <div className="mt-0.5"><CodeChip>0208:{company.bceNumber.replace(/[^0-9]/g, '')}</CodeChip></div>
           </div>
-
-          {/* Code Viewer */}
-          <div className="relative">
-            <div className="flex items-center justify-between px-3 py-1.5 bg-slate-950 rounded-t-lg border-t border-x border-slate-800 text-xs text-slate-400">
-              <span className="flex items-center space-x-1 font-mono text-[11px]">
-                <Code className="w-3.5 h-3.5 mr-1 text-amber-400" />
-                UBL-2.1-Invoice-Peppol-BIS-3.0.xml
-              </span>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={handleCopy}
-                  className="flex items-center space-x-1 text-[11px] text-slate-300 hover:text-amber-300"
-                >
-                  {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                  <span>{copied ? 'Copié' : 'Copier XML'}</span>
-                </button>
-              </div>
-            </div>
-
-            <pre className="bg-slate-950 p-4 rounded-b-lg border border-slate-800 text-[11px] font-mono text-emerald-400/90 overflow-x-auto max-h-80 leading-relaxed">
-              <code>{ublXml}</code>
-            </pre>
+          <div>
+            <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Acheteur</div>
+            <div className="mt-0.5 font-medium text-[var(--text-primary)] truncate">{invoice.client.name}</div>
+            <div className="mt-0.5"><CodeChip>0208:{invoice.client.bceNumber.replace(/[^0-9]/g, '')}</CodeChip></div>
           </div>
-
-          {/* Compliance note */}
-          <div className="p-3 bg-emerald-950/30 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 flex items-start space-x-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-            <p className="leading-relaxed">
-              Ce document XML est strictement conforme au format Peppol BIS Billing 3.0 prescrit par la législation belge et le SPF Finances pour la facturation électronique B2B obligatoire.
-            </p>
-          </div>
-
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800 bg-slate-900">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
-          >
-            Fermer
-          </button>
-
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={handleDownloadXml}
-              className="inline-flex items-center px-4 py-2 text-xs font-bold rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20"
-            >
-              <Download className="w-3.5 h-3.5 mr-1.5" />
-              Télécharger le fichier XML Peppol
-            </button>
+          <div>
+            <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">OGM</div>
+            <div className="mt-0.5"><CodeChip>{invoice.structuredCommunication}</CodeChip></div>
+            <div className="mt-1"><StatusDot tone="positive">PaymentMeans</StatusDot></div>
           </div>
         </div>
 
+        <div className="relative">
+          <div className="flex items-center justify-between px-3 py-2 bg-[var(--bg-subtle)] border border-[var(--border-subtle)] rounded-t-[var(--radius-md)] text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+            <span className="inline-flex items-center gap-2 font-mono">
+              <Code className="w-4 h-4 text-[var(--text-tertiary)]" />
+              UBL.xml
+            </span>
+            <StatusDot tone="neutral">Lecture seule</StatusDot>
+          </div>
+
+          <pre className="bg-[var(--bg-surface)] p-3 border border-[var(--border-subtle)] border-t-0 rounded-b-[var(--radius-md)] text-[11px] font-mono text-[var(--text-secondary)] overflow-x-auto max-h-80 leading-relaxed">
+            <code>{ublXml}</code>
+          </pre>
+        </div>
+
+        <div className="p-3 bg-[var(--state-positive-bg)] border border-[var(--state-positive-border)] rounded-[var(--radius-md)] text-[length:var(--text-xs)] text-[var(--state-positive-text)] flex items-start gap-2">
+          <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
+          <p className="leading-snug">Conforme Peppol BIS Billing 3.0 (EN 16931 + CIUS-BE) — démo.</p>
+        </div>
       </div>
-    </div>
+    </Modal>
   );
 };

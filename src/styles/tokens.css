@@ -8,36 +8,36 @@
   color-scheme: dark;
 
   /* ── Surfaces ─────────────────────────────────────────────────────────── */
-  --bg-app: #0b1120;
-  --bg-chrome: #0b1120;
-  --bg-sidebar: #101827;
-  --bg-surface: #1a2334;
-  --bg-surface-raised: #243049;
-  --bg-subtle: #162032;
-  --bg-hover: #26334a;
-  --bg-active: #33415a;
-  --bg-sunken: #0f172a;
-  --bg-overlay: rgba(2, 6, 23, 0.72);
+  --bg-app: #0a0e1a;
+  --bg-chrome: #0d1322;
+  --bg-sidebar: #0e1424;
+  --bg-surface: #151c2e;
+  --bg-surface-raised: #1e2740;
+  --bg-subtle: #111a2b;
+  --bg-hover: #232e47;
+  --bg-active: #2e3a57;
+  --bg-sunken: #0a0f1c;
+  --bg-overlay: rgba(4, 8, 18, 0.74);
 
   /* ── Borders ─────────────────────────────────────────────────────────── */
-  --border-subtle: #233047;
-  --border-default: #33415a;
-  --border-strong: #46546f;
+  --border-subtle: #1f2a40;
+  --border-default: #2c3a56;
+  --border-strong: #3e4f70;
   --border-focus: #f59e0b;
 
   /* ── Text ────────────────────────────────────────────────────────────── */
-  --text-primary: #f1f5f9;
-  --text-secondary: #cbd5e1;
-  --text-tertiary: #94a3b8;
-  --text-disabled: #64748b;
-  --text-inverse: #0f172a;
+  --text-primary: #eef2f8;
+  --text-secondary: #c3ccdd;
+  --text-tertiary: #8b98b3;
+  --text-disabled: #5c6a85;
+  --text-inverse: #0b101c;
 
   /* ── Accent (amber — Belgian identity) ────────────────────────────────── */
   --accent-solid: #f59e0b;
-  --accent-text: #1c1917;
+  --accent-text: #221a05;
   --accent-hover: #fbbf24;
-  --accent-soft: rgba(245, 158, 11, 0.12);
-  --accent-soft-border: rgba(245, 158, 11, 0.35);
+  --accent-soft: rgba(245, 158, 11, 0.10);
+  --accent-soft-border: rgba(245, 158, 11, 0.30);
 
   /* ── Semantic states ─────────────────────────────────────────────────── */
   --state-info-bg: rgba(59, 130, 246, 0.12);
