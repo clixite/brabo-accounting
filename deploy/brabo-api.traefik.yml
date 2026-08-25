@@ -1,0 +1,25 @@
+# Configuration dynamique Traefik pour l'API BRABO.
+# À copier sur le VPS dans : /docker/traefik-svsx/config/brabo-api.yml
+
+http:
+  routers:
+    brabo-api:
+      rule: "Host(`api.brabo.clixite-prod.cloud`)"
+      entrypoints: [websecure]
+      tls:
+        certResolver: le
+      service: brabo-api-svc
+      middlewares: [security-headers]
+
+    brabo-api-http:
+      rule: "Host(`api.brabo.clixite-prod.cloud`)"
+      entrypoints: [web]
+      middlewares: [redirect-https]
+      service: brabo-api-svc
+
+  services:
+    brabo-api-svc:
+      loadBalancer:
+        servers:
+          - url: "http://brabo-api:4000"
+        passHostHeader: true

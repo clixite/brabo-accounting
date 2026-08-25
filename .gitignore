@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Environment secrets (VITE_API_TOKEN etc.) — never commit
+.env
+.env.*
+!.env.example
+
 # Local deployment secrets (SSH keys, server credentials)
 .deploy/
 

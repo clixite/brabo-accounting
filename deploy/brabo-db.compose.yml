@@ -1,0 +1,21 @@
+services:
+  brabo-db:
+    image: postgres:16-alpine
+    container_name: brabo-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: brabo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: brabo
+    volumes:
+      - brabo-db-data:/var/lib/postgresql/data
+      - /opt/brabo-api/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    networks:
+      - brabo-internal
+
+volumes:
+  brabo-db-data:
+
+networks:
+  brabo-internal:
+    external: true

@@ -1,0 +1,19 @@
+services:
+  brabo-api:
+    build: /opt/brabo-api
+    image: brabo-api:latest
+    container_name: brabo-api
+    restart: unless-stopped
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgres://brabo:${POSTGRES_PASSWORD}@brabo-db:5432/brabo
+      BRABO_API_TOKEN: ${BRABO_API_TOKEN}
+    networks:
+      - proxy
+      - brabo-internal
+
+networks:
+  proxy:
+    external: true
+  brabo-internal:
+    external: true

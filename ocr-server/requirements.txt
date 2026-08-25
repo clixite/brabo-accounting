@@ -1,0 +1,16 @@
+# BRABO OCR server — Python 3.11 (CPU)
+# paddlepaddle 3.x is the CPU wheel from PyPI (no CUDA).
+paddlepaddle==3.0.0
+paddleocr==3.0.0
+
+# API
+fastapi>=0.115,<1
+uvicorn[standard]>=0.32
+python-multipart>=0.0.9
+pydantic>=2.9,<3
+
+# PDF rasterisation + imaging
+pypdfium2>=4.30
+opencv-python-headless>=4.10
+pillow>=10.4
+numpy>=1.26,<3

@@ -16,6 +16,7 @@ import { CommandPalette } from './components/CommandPalette';
 import { useSession } from './state/SessionContext';
 import { useToasts } from './state/ToastContext';
 import { loadTenantLedger, replaceTenantLedger } from './services/tenantWorkspace';
+import { apiFetchLedger, apiSaveLedger } from './services/apiClient';
 import { transmitInvoice } from './services/peppolService';
 
 // Code-split the heavy views/modals so the initial bundle stays lean.
@@ -96,22 +97,33 @@ export function ClientWorkspace() {
     localStorage.setItem('brabo_transactions', JSON.stringify(transactions));
   }, [transactions]);
 
-  // Hydrate from the per-tenant store (cabinet → client direction). Once the
-  // store has a ledger for this tenant, it wins over the local seed.
+  // Hydrate: prefer the real PostgreSQL API (when configured), fall back to the
+  // local per-tenant store (cabinet → client direction).
   useEffect(() => {
     if (!activeTenant || !user || hydrated) return;
     let cancelled = false;
-    loadTenantLedger(activeTenant.id, user.id)
+    const bceDigits = (company.bceNumber || '').replace(/[^0-9]/g, '');
+    apiFetchLedger(bceDigits)
       .then((ledger) => {
         if (cancelled) return;
-        if (ledger) {
+        if (ledger && ledger.invoices) {
+          setCompany(ledger.company);
           setInvoices(ledger.invoices);
           setPurchases(ledger.purchases);
           setTransactions(ledger.transactions);
+          setHydrated(true);
+          return null;
         }
-        setHydrated(true);
+        return loadTenantLedger(activeTenant.id, user.id);
       })
-      .catch(() => {
+      .then((ledger) => {
+        if (cancelled || !ledger) return;
+        setInvoices(ledger.invoices);
+        setPurchases(ledger.purchases);
+        setTransactions(ledger.transactions);
+      })
+      .catch(() => undefined)
+      .finally(() => {
         if (!cancelled) setHydrated(true);
       });
     return () => {
@@ -119,15 +131,19 @@ export function ClientWorkspace() {
     };
   }, [activeTenant, user, hydrated]);
 
-  // Write-through to the per-tenant store so the cabinet portal reflects
-  // exactly what the client encodes (source unique, bien séparé).
-  // Only the company's OWNER/MANAGER writes through; an accountant inspecting
-  // the workspace reads from the store but does not overwrite it.
+  // Write-through: persist to the real PostgreSQL API when reachable, else to
+  // the local per-tenant store. Only OWNER/MANAGER write; accountants read.
   useEffect(() => {
     if (!activeTenant || !user || !hydrated) return;
     if (activeRole !== 'OWNER' && activeRole !== 'MANAGER') return;
     const timer = setTimeout(async () => {
       setSyncState('syncing');
+      const bceDigits = (company.bceNumber || '').replace(/[^0-9]/g, '');
+      const apiOk = await apiSaveLedger(bceDigits, { company, invoices, purchases, transactions });
+      if (apiOk) {
+        setSyncState('synced');
+        return;
+      }
       try {
         await replaceTenantLedger(activeTenant.id, user.id, { company, invoices, purchases, transactions });
         setSyncState('synced');
