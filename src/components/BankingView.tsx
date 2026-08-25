@@ -6,13 +6,15 @@ import {
   Check, 
   Zap,
   FileCode,
-  Sparkles
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 import type { BankTransaction, Invoice, PurchaseExpense } from '../types/accounting';
 import type { Language } from '../i18n/translations';
 import { translations } from '../i18n/translations';
 import { SAMPLE_CODA_FILE_CONTENT } from '../data/mockBelgianData';
 import { parseCODAStatement } from '../utils/belgianAccounting';
+import { codaBoxConnector } from '../services/codaBoxConnector';
 import confetti from 'canvas-confetti';
 
 interface BankingViewProps {
@@ -35,6 +37,7 @@ export const BankingView: React.FC<BankingViewProps> = ({
   const t = translations[lang].banking;
   const [filterReconciled, setFilterReconciled] = useState<'all' | 'unreconciled' | 'reconciled'>('all');
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isCodaBoxSyncing, setIsCodaBoxSyncing] = useState(false);
 
   const filteredTransactions = transactions.filter(tx => {
     if (filterReconciled === 'unreconciled') return !tx.reconciled;
@@ -95,6 +98,20 @@ export const BankingView: React.FC<BankingViewProps> = ({
 
   const handleSimulateCodaImport = () => {
     processCodaContent(SAMPLE_CODA_FILE_CONTENT);
+  };
+
+  const handleCodaBoxSync = async () => {
+    setIsCodaBoxSyncing(true);
+    try {
+      const deliveries = await codaBoxConnector.syncAllAccounts();
+      const allTransactions = deliveries.flatMap((d) => d.batch.transactions);
+      if (allTransactions.length > 0) {
+        onImportCodaTransactions(allTransactions);
+      }
+      confetti({ particleCount: 60, spread: 60, origin: { y: 0.7 } });
+    } finally {
+      setIsCodaBoxSyncing(false);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -166,6 +183,15 @@ export const BankingView: React.FC<BankingViewProps> = ({
           >
             <Sparkles className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
             <span>Démo Extrait Febelfin</span>
+          </button>
+
+          <button
+            onClick={handleCodaBoxSync}
+            disabled={isCodaBoxSyncing}
+            className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-emerald-950/40 hover:bg-emerald-900/40 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60 transition flex items-center shadow-sm disabled:opacity-60"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 text-emerald-400 ${isCodaBoxSyncing ? 'animate-spin' : ''}`} />
+            <span>{isCodaBoxSyncing ? 'Synchronisation...' : 'Sync CodaBox (Isabel Group)'}</span>
           </button>
 
           <button

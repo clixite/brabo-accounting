@@ -5,11 +5,14 @@ import {
   Download, 
   Send, 
   MessageSquare, 
-  CheckCircle2
+  CheckCircle2,
+  Scale
 } from 'lucide-react';
 import type { CompanyProfile, Invoice, PurchaseExpense } from '../types/accounting';
 import type { Language } from '../i18n/translations';
 import { translations } from '../i18n/translations';
+import { exportFiduciaryPackage, downloadFiduciaryPackage } from '../services/fiduciaryBridge';
+import type { FiduciaryFormat } from '../services/fiduciaryBridge';
 import confetti from 'canvas-confetti';
 
 interface FiduciaryViewProps {
@@ -51,38 +54,29 @@ export const FiduciaryView: React.FC<FiduciaryViewProps> = ({
   ]);
   const [newMessage, setNewMessage] = useState('');
 
-  const handleExportSoftware = (format: 'bob' | 'winbooks' | 'horus' | 'exact') => {
-    let content = '';
-    let filename = '';
+  const handleExportSoftware = (format: 'bob' | 'winbooks' | 'horus' | 'exact' | 'full') => {
+    const formatMap: Record<typeof format, FiduciaryFormat> = {
+      bob: 'sage_bob50',
+      winbooks: 'winbooks',
+      horus: 'horus',
+      exact: 'exact_online',
+      full: 'full_bundle',
+    };
 
-    if (format === 'bob') {
-      filename = `EXPORT_SAGE_BOB_${company.vatNumber}.txt`;
-      content = `# EXPORT SAGE BOB 50 / EXPERT (ASCII FORMAT)\n# BCE: ${company.bceNumber}\n` +
-        invoices.map(i => `VEN;${i.invoiceNumber};${i.date};${i.client.vatNumber};${i.subtotalExclVat};${i.totalVatAmount};${i.structuredCommunication}`).join('\n');
-    } else if (format === 'winbooks') {
-      filename = `EXPORT_WINBOOKS_${company.vatNumber}.xml`;
-      content = `<?xml version="1.0" encoding="UTF-8"?>\n<WinbooksExport Version="2.0">\n  <Company>${company.name}</Company>\n  <Invoices Count="${invoices.length}" />\n</WinbooksExport>`;
-    } else if (format === 'horus') {
-      filename = `EXPORT_HORUS_OFFICE_${company.vatNumber}.xml`;
-      content = `<?xml version="1.0" encoding="UTF-8"?>\n<HorusBridge>\n  <Header BCE="${company.bceNumber}" Source="BRABO_APP" />\n  <Documents Count="${invoices.length + purchases.length}" />\n</HorusBridge>`;
-    } else {
-      filename = `EXPORT_EXACT_ONLINE_${company.vatNumber}.csv`;
-      content = `Type,InvoiceNumber,Date,Client,AmountExcl,VAT,OGM\n` +
-        invoices.map(i => `Sales,${i.invoiceNumber},${i.date},"${i.client.name}",${i.subtotalExclVat},${i.totalVatAmount},"${i.structuredCommunication}"`).join('\n');
+    try {
+      const pkg = exportFiduciaryPackage(invoices, purchases, company, formatMap[format], {
+        fiscalYear: new Date().getFullYear(),
+        includeMasterData: true,
+      });
+
+      downloadFiduciaryPackage(pkg);
+      setExportSuccess(`Dossier fiduciaire ${pkg.files.length} fichier(s) généré(s) et vérifié(s) (partie double équilibrée) !`);
+      confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue';
+      setExportSuccess(`⚠️ Export bloqué : ${message}`);
     }
-
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    setExportSuccess(`Fichier ${filename} généré avec succès !`);
-    setTimeout(() => setExportSuccess(null), 4000);
-    confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+    setTimeout(() => setExportSuccess(null), 5000);
   };
 
   const handleSendMessage = (e: React.FormEvent) => {
@@ -166,6 +160,12 @@ export const FiduciaryView: React.FC<FiduciaryViewProps> = ({
             className="px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold transition"
           >
             {t.exportHorus}
+          </button>
+          <button 
+            onClick={() => handleExportSoftware('full')}
+            className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 transition"
+          >
+            Bundle complet (tous formats)
           </button>
         </div>
       </div>
@@ -261,7 +261,15 @@ export const FiduciaryView: React.FC<FiduciaryViewProps> = ({
               className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center justify-center space-x-1.5 transition"
             >
               <Download className="w-3.5 h-3.5 text-amber-400" />
-              <span>Exporter Tout le Grand Livre (CSV)</span>
+              <span>Exporter Exact Online (CSV/XML)</span>
+            </button>
+
+            <button
+              onClick={() => handleExportSoftware('full')}
+              className="w-full mt-2 py-2 px-3 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/40 text-emerald-300 border border-emerald-500/40 text-xs font-semibold flex items-center justify-center space-x-1.5 transition"
+            >
+              <Scale className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Dossier Fiduciaire Complet (Vérifié Partie Double)</span>
             </button>
           </div>
         </div>

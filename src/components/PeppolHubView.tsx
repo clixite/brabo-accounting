@@ -7,7 +7,9 @@ import {
   FileCode, 
   ShieldCheck, 
   ArrowUpRight, 
-  RefreshCw 
+  RefreshCw,
+  Globe,
+  ClipboardCheck
 } from 'lucide-react';
 import type { CompanyProfile, Invoice, PurchaseExpense } from '../types/accounting';
 import type { Language } from '../i18n/translations';
@@ -20,12 +22,16 @@ interface PeppolHubViewProps {
   purchases: PurchaseExpense[];
   lang: Language;
   onViewInvoiceXml: (invoice: Invoice) => void;
+  onOpenVies: () => void;
+  onValidateSchematron: (invoice: Invoice) => void;
 }
 
 export const PeppolHubView: React.FC<PeppolHubViewProps> = ({
   invoices,
   lang,
   onViewInvoiceXml,
+  onOpenVies,
+  onValidateSchematron,
 }) => {
   const t = translations[lang].peppol;
   const [bceQuery, setBceQuery] = useState('BE 0477.472.701');
@@ -116,11 +122,30 @@ export const PeppolHubView: React.FC<PeppolHubViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs flex items-center">
             <ShieldCheck className="w-4 h-4 mr-1.5 text-emerald-400" />
             <span>Point d'accès Peppol AS4 Connecté</span>
           </div>
+
+          <button
+            onClick={onOpenVies}
+            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-blue-500/40 text-xs flex items-center transition"
+          >
+            <Globe className="w-3.5 h-3.5 mr-1.5 text-blue-400" />
+            Vérifier TVA VIES
+          </button>
+
+          <button
+            onClick={() => {
+              const firstInvoice = invoices.find((i) => i.type === 'invoice');
+              if (firstInvoice) onValidateSchematron(firstInvoice);
+            }}
+            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-emerald-500/40 text-xs flex items-center transition"
+          >
+            <ClipboardCheck className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
+            Audit Schematron EN 16931
+          </button>
         </div>
       </div>
 

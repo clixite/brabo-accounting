@@ -24,6 +24,11 @@ import { ExpenseModal } from './components/ExpenseModal';
 import { OgmToolModal } from './components/OgmToolModal';
 import { PeppolViewerModal } from './components/PeppolViewerModal';
 import { LatePaymentModal } from './components/LatePaymentModal';
+import { PayconiqModal } from './components/PayconiqModal';
+import { ViesLookupModal } from './components/ViesLookupModal';
+import { SchematronReportModal } from './components/SchematronReportModal';
+import { validateInvoiceSchematron } from './services/schematronValidator';
+import type { ValidationReport } from './services/schematronValidator';
 
 export function App() {
   // 1. Language state
@@ -85,6 +90,9 @@ export function App() {
   const [isOgmModalOpen, setIsOgmModalOpen] = useState(false);
   const [peppolViewerInvoice, setPeppolViewerInvoice] = useState<Invoice | null>(null);
   const [latePaymentInvoice, setLatePaymentInvoice] = useState<Invoice | null>(null);
+  const [payconiqInvoice, setPayconiqInvoice] = useState<Invoice | null>(null);
+  const [isViesModalOpen, setIsViesModalOpen] = useState(false);
+  const [schematronReport, setSchematronReport] = useState<ValidationReport | null>(null);
 
   // Handlers for Invoices
   const handleOpenNewInvoice = () => {
@@ -174,6 +182,20 @@ export function App() {
     setTransactions(prev => [...newTxs, ...prev]);
   };
 
+  // Handlers for new production engines
+  const handleValidateSchematron = (inv: Invoice) => {
+    const report = validateInvoiceSchematron(inv, { company });
+    setSchematronReport(report);
+  };
+
+  const handleOpenPayconiq = (inv: Invoice) => {
+    setPayconiqInvoice(inv);
+  };
+
+  const handleOpenVies = () => {
+    setIsViesModalOpen(true);
+  };
+
   // Count badges for Navigation
   const overdueCount = invoices.filter(i => i.status === 'overdue' && i.type === 'invoice').length;
   const pendingExpensesCount = purchases.filter(p => p.status === 'pending').length;
@@ -232,6 +254,8 @@ export function App() {
             onDeleteInvoice={handleDeleteInvoice}
             onUpdateStatus={handleUpdateInvoiceStatus}
             onOpenLatePaymentModal={(inv) => setLatePaymentInvoice(inv)}
+            onOpenPayconiq={handleOpenPayconiq}
+            onValidateSchematron={handleValidateSchematron}
           />
         )}
 
@@ -251,6 +275,8 @@ export function App() {
             purchases={purchases}
             lang={lang}
             onViewInvoiceXml={(inv) => setPeppolViewerInvoice(inv)}
+            onOpenVies={handleOpenVies}
+            onValidateSchematron={handleValidateSchematron}
           />
         )}
 
@@ -344,6 +370,29 @@ export function App() {
           onClose={() => setLatePaymentInvoice(null)}
           invoice={latePaymentInvoice}
           company={company}
+        />
+      )}
+
+      {payconiqInvoice && (
+        <PayconiqModal
+          isOpen={!!payconiqInvoice}
+          onClose={() => setPayconiqInvoice(null)}
+          invoice={payconiqInvoice}
+          onPaymentSuccess={(id) => handleUpdateInvoiceStatus(id, 'paid')}
+        />
+      )}
+
+      <ViesLookupModal
+        isOpen={isViesModalOpen}
+        onClose={() => setIsViesModalOpen(false)}
+        requesterBce={company.bceNumber}
+      />
+
+      {schematronReport && (
+        <SchematronReportModal
+          isOpen={!!schematronReport}
+          onClose={() => setSchematronReport(null)}
+          report={schematronReport}
         />
       )}
 

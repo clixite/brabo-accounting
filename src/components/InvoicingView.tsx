@@ -11,7 +11,9 @@ import {
   Trash2, 
   Edit2, 
   Network, 
-  ShieldAlert 
+  ShieldAlert,
+  Smartphone,
+  ClipboardCheck
 } from 'lucide-react';
 import type { Invoice, CompanyProfile, InvoiceStatus } from '../types/accounting';
 import type { Language } from '../i18n/translations';
@@ -31,6 +33,8 @@ interface InvoicingViewProps {
   onDeleteInvoice: (id: string) => void;
   onUpdateStatus: (id: string, status: InvoiceStatus) => void;
   onOpenLatePaymentModal: (invoice: Invoice) => void;
+  onOpenPayconiq: (invoice: Invoice) => void;
+  onValidateSchematron: (invoice: Invoice) => void;
 }
 
 export const InvoicingView: React.FC<InvoicingViewProps> = ({
@@ -45,6 +49,8 @@ export const InvoicingView: React.FC<InvoicingViewProps> = ({
   onDeleteInvoice,
   onUpdateStatus,
   onOpenLatePaymentModal,
+  onOpenPayconiq,
+  onValidateSchematron,
 }) => {
   const t = translations[lang].invoicing;
   const [searchTerm, setSearchTerm] = useState('');
@@ -330,6 +336,24 @@ export const InvoicingView: React.FC<InvoicingViewProps> = ({
                       >
                         <Network className="w-4 h-4" />
                       </button>
+
+                      <button
+                        onClick={() => onValidateSchematron(inv)}
+                        title="Valider la conformité EN 16931 / CIUS-BE (Schematron)"
+                        className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded-lg transition"
+                      >
+                        <ClipboardCheck className="w-4 h-4" />
+                      </button>
+
+                      {inv.status !== 'paid' && (
+                        <button
+                          onClick={() => onOpenPayconiq(inv)}
+                          title="Payer par Payconiq by Bancontact"
+                          className="p-1.5 text-slate-400 hover:text-pink-400 hover:bg-slate-800 rounded-lg transition"
+                        >
+                          <Smartphone className="w-4 h-4" />
+                        </button>
+                      )}
 
                       {inv.status !== 'paid' && (
                         <button

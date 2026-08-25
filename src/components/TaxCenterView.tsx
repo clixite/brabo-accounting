@@ -5,7 +5,8 @@ import {
   Users, 
   PiggyBank,
   Building,
-  Car
+  Car,
+  FileText
 } from 'lucide-react';
 import type { CompanyProfile, Invoice, PurchaseExpense } from '../types/accounting';
 import type { Language } from '../i18n/translations';
@@ -16,6 +17,7 @@ import {
   generateIntervatClientListingXML,
   simulateBelgianSocialContributions 
 } from '../utils/belgianAccounting';
+import { generateBelcotaxXml, downloadBelcotaxFile } from '../services/belcotaxGenerator';
 import confetti from 'canvas-confetti';
 
 interface TaxCenterViewProps {
@@ -97,6 +99,31 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
     link.click();
     document.body.removeChild(link);
     confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+  };
+
+  const handleDownloadBelcotax = () => {
+    const file = generateBelcotaxXml({
+      ficheType: '281.50',
+      incomeYear: 2026,
+      declarant: company,
+      beneficiaries: [
+        {
+          identificationNumber: '82010112345',
+          lastName: 'Simon',
+          firstName: 'Nicolas',
+          street: 'Avenue Louise',
+          number: '240',
+          postalCode: '1050',
+          city: 'Bruxelles',
+          country: 'Belgique',
+          amount: 4500.00,
+          withholdingTax: 0,
+          description: 'Honoraires de consultance IT indépendant',
+        },
+      ],
+    });
+    downloadBelcotaxFile(file);
+    confetti({ particleCount: 40, spread: 50, origin: { y: 0.7 } });
   };
 
   return (
@@ -334,13 +361,23 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
                 </p>
               </div>
 
-              <button
-                onClick={handleDownloadIntervatListing}
-                className="inline-flex items-center px-4 py-2 text-xs font-bold rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition self-start sm:self-auto"
-              >
-                <Download className="w-4 h-4 mr-1.5" />
-                {t.generateIntervatXml}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={handleDownloadIntervatListing}
+                  className="inline-flex items-center px-4 py-2 text-xs font-bold rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition self-start sm:self-auto"
+                >
+                  <Download className="w-4 h-4 mr-1.5" />
+                  {t.generateIntervatXml}
+                </button>
+
+                <button
+                  onClick={handleDownloadBelcotax}
+                  className="inline-flex items-center px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-blue-500/40 transition self-start sm:self-auto"
+                >
+                  <FileText className="w-4 h-4 mr-1.5 text-blue-400" />
+                  Fiche 281.50 (Belcotax)
+                </button>
+              </div>
             </div>
 
             <div className="border border-slate-800 rounded-xl overflow-hidden">
