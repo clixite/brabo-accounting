@@ -8,6 +8,11 @@ import {
   Car,
   FileText,
   ShieldAlert,
+  ShieldCheck,
+  ShieldOff,
+  Lock,
+  Send,
+  Loader2,
   CheckCircle2,
   AlertTriangle,
   Info
@@ -19,6 +24,7 @@ import {
   calculateVatGrids, 
   generateAnnualClientListing, 
   generateIntervatClientListingXML,
+  generateIntervatVatDeclarationXml,
   simulateBelgianSocialContributions 
 } from '../utils/belgianAccounting';
 import { generateBelcotaxXml, downloadBelcotaxFile } from '../services/belcotaxGenerator';
@@ -30,6 +36,8 @@ interface TaxCenterViewProps {
   invoices: Invoice[];
   purchases: PurchaseExpense[];
   lang: Language;
+  /** True when the cabinet granted the client the autonomous VAT filing right. */
+  canSelfDeclare: boolean;
 }
 
 export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
@@ -37,6 +45,7 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
   invoices,
   purchases,
   lang,
+  canSelfDeclare,
 }) => {
   const t = translations[lang].taxCenter;
   const [activeTab, setActiveTab] = useState<'vat' | 'listing' | 'social' | 'isoc' | 'atn' | 'audit'>('vat');
@@ -50,6 +59,10 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
   const [carCo2, setCarCo2] = useState<number>(0);
   const [carFuelType, setCarFuelType] = useState<'electric' | 'petrol' | 'diesel'>('electric');
   const [carAgeMonths, setCarAgeMonths] = useState<number>(6);
+
+  const [submittedPeriod, setSubmittedPeriod] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const vatDeclaration = calculateVatGrids(invoices, purchases, selectedPeriod);
   const clientListing = generateAnnualClientListing(invoices, 2026);
@@ -106,6 +119,28 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
     link.click();
     document.body.removeChild(link);
     confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+  };
+
+  const handleSubmitVat = () => {
+    setSubmitError(null);
+    if (fiscalAudit.totalErrors > 0) {
+      setSubmitError('Des anomalies bloquantes doivent être corrigées avant le dépôt (voir l\'onglet Audit Fiscal).');
+      return;
+    }
+    setSubmitting(true);
+    const xml = generateIntervatVatDeclarationXml(company, vatDeclaration);
+    const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `INTERVAT_TVA_${company.vatNumber}_${selectedPeriod}.xml`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setSubmittedPeriod(selectedPeriod);
+    setSubmitting(false);
+    confetti({ particleCount: 120, spread: 80, origin: { y: 0.7 } });
   };
 
   const handleDownloadBelcotax = () => {
@@ -247,6 +282,62 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
                 {(vatDeclaration.grid71 > 0 ? vatDeclaration.grid71 : vatDeclaration.grid72).toFixed(2)} €
               </span>
             </div>
+          </div>
+
+          {/* VAT filing — gated on the self-filing right granted by the cabinet */}
+          <div className={`rounded-2xl border p-5 ${
+            canSelfDeclare ? 'bg-emerald-950/20 border-emerald-500/30' : 'bg-slate-900/70 border-slate-700/60'
+          }`}>
+            {canSelfDeclare ? (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-sm font-bold text-emerald-300">Déclaration TVA autonome activée</div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Votre cabinet vous a accordé le droit de déposer vous-même la déclaration périodique {selectedPeriod}.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {submittedPeriod === selectedPeriod ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/40">
+                      <CheckCircle2 className="h-4 w-4" /> Déposée sur Intervat
+                    </span>
+                  ) : (
+                    <button
+                      onClick={handleSubmitVat}
+                      disabled={submitting || fiscalAudit.totalErrors > 0}
+                      title={fiscalAudit.totalErrors > 0 ? 'Corrigez d\'abord les anomalies bloquantes' : 'Déposer la déclaration'}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-md shadow-emerald-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      Déposer la déclaration TVA (Intervat)
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <ShieldOff className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-sm font-bold text-slate-300">Déclaration TVA déposée par votre cabinet</div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Votre expert-comptable ITAA pilote la déclaration. Vous pouvez consulter les grilles, mais seul le cabinet peut déposer — contactez-le pour obtenir l'accès autonome.
+                    </p>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 text-xs font-semibold shrink-0">
+                  <Lock className="h-4 w-4" /> Accès réservé au cabinet
+                </span>
+              </div>
+            )}
+            {submitError && (
+              <p className="mt-3 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                {submitError}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -8,9 +8,8 @@ import {
   MOCK_CLIENTS
 } from './data/mockBelgianData';
 import type { Language } from './i18n/translations';
-import { Header } from './components/Header';
-import { Navigation } from './components/Navigation';
 import type { NavTab } from './components/Navigation';
+import { AppShell } from './components/shell/AppShell';
 import { DashboardView } from './components/DashboardView';
 import { InvoicingView } from './components/InvoicingView';
 import { ExpensesView } from './components/ExpensesView';
@@ -30,10 +29,13 @@ import { SchematronReportModal } from './components/SchematronReportModal';
 import { validateInvoiceSchematron } from './services/schematronValidator';
 import type { ValidationReport } from './services/schematronValidator';
 import { SessionBar } from './components/portal/SessionBar';
+import { useSession } from './state/SessionContext';
 
 export function ClientWorkspace() {
+  const { canSelfDeclare } = useSession();
+
   // 1. Language state
-  const [lang, setLang] = useState<Language>(() => {
+  const [lang] = useState<Language>(() => {
     return (localStorage.getItem('brabo_lang') as Language) || 'fr';
   });
 
@@ -65,6 +67,8 @@ export function ClientWorkspace() {
   useEffect(() => {
     localStorage.setItem('brabo_lang', lang);
   }, [lang]);
+
+  // Language switching moved to the cabinet/client session layer (not in workspace UI yet).
 
   useEffect(() => {
     localStorage.setItem('brabo_company', JSON.stringify(company));
@@ -203,33 +207,19 @@ export function ClientWorkspace() {
   const unreconciledBankCount = transactions.filter(t => !t.reconciled).length;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
-      
+    <div>
       {/* Session & role strip (client ↔ cabinet separation) */}
       <SessionBar />
 
-      {/* Top Application Header */}
-      <Header
+      <AppShell
         company={company}
         lang={lang}
-        onLanguageChange={setLang}
-        onNewInvoice={handleOpenNewInvoice}
-        onScanExpense={() => setIsExpenseModalOpen(true)}
-      />
-
-      {/* Main Navigation Tabs */}
-      <Navigation
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
-        lang={lang}
         overdueCount={overdueCount}
         pendingExpensesCount={pendingExpensesCount}
         unreconciledBankCount={unreconciledBankCount}
-      />
-
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        
+      >
         {currentTab === 'dashboard' && (
           <DashboardView
             company={company}
@@ -290,6 +280,7 @@ export function ClientWorkspace() {
             invoices={invoices}
             purchases={purchases}
             lang={lang}
+            canSelfDeclare={canSelfDeclare}
           />
         )}
 
@@ -321,21 +312,7 @@ export function ClientWorkspace() {
           />
         )}
 
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="flex items-center space-x-2">
-            <span className="font-bold text-slate-300">BRABO Accounting & Peppol Hub</span>
-            <span>•</span>
-            <span>Conforme SPF Finances & Loi belge du 20/02/2024</span>
-          </div>
-          <div className="text-[11px] text-slate-400">
-            Échange direct Peppol UBL 2.1 (EAS 0208) • BCE Modulo 97 • Febelfin CODA
-          </div>
-        </div>
-      </footer>
+      </AppShell>
 
       {/* Modals */}
       <InvoiceModal

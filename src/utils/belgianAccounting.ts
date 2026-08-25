@@ -539,6 +539,57 @@ export function generateIntervatClientListingXML(
 }
 
 /**
+ * Generates the Intervat periodic VAT return (déclaration périodique à la TVA)
+ * payload for the computed grids. This is the artefact submitted to the SPF
+ * Finances when the client (or its accountant) files the return.
+ */
+export function generateIntervatVatDeclarationXml(
+  company: CompanyProfile,
+  grids: VatGridDeclaration
+): string {
+  const cleanVat = company.vatNumber.replace(/[^0-9]/g, '');
+  const esc = escapeXml;
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<VATDeclarationConsignment xmlns="http://www.minfin.fgov.be/VATDeclarationConsignment" VATDeclarationVersion="1.0" VATNumber="${cleanVat}">
+  <Declarant>
+    <VATNumber>${cleanVat}</VATNumber>
+    <Name>${esc(company.name)}</Name>
+    <Street>${esc(company.street + ' ' + company.number)}</Street>
+    <PostCode>${company.postalCode}</PostCode>
+    <City>${esc(company.city)}</City>
+    <CountryCode>BE</CountryCode>
+  </Declarant>
+  <Period>${grids.period}</Period>
+  <Year>${grids.year}</Year>
+  <Grids>
+    <Grid00>${grids.grid00.toFixed(2)}</Grid00>
+    <Grid01>${grids.grid01.toFixed(2)}</Grid01>
+    <Grid02>${grids.grid02.toFixed(2)}</Grid02>
+    <Grid03>${grids.grid03.toFixed(2)}</Grid03>
+    <Grid44>${grids.grid44.toFixed(2)}</Grid44>
+    <Grid45>${grids.grid45.toFixed(2)}</Grid45>
+    <Grid46>${grids.grid46.toFixed(2)}</Grid46>
+    <Grid47>${grids.grid47.toFixed(2)}</Grid47>
+    <Grid54>${grids.grid54.toFixed(2)}</Grid54>
+    <Grid55>${grids.grid55.toFixed(2)}</Grid55>
+    <Grid56>${grids.grid56.toFixed(2)}</Grid56>
+    <Grid57>${grids.grid57.toFixed(2)}</Grid57>
+    <Grid81>${grids.grid81.toFixed(2)}</Grid81>
+    <Grid82>${grids.grid82.toFixed(2)}</Grid82>
+    <Grid83>${grids.grid83.toFixed(2)}</Grid83>
+    <Grid84>${grids.grid84.toFixed(2)}</Grid84>
+    <Grid85>${grids.grid85.toFixed(2)}</Grid85>
+    <Grid59>${grids.grid59.toFixed(2)}</Grid59>
+  </Grids>
+  <Balance>
+    <Grid71>${grids.grid71.toFixed(2)}</Grid71>
+    <Grid72>${grids.grid72.toFixed(2)}</Grid72>
+  </Balance>
+</VATDeclarationConsignment>`;
+}
+
+/**
  * Parses Belgian Febelfin CODA Bank Statement lines
  */
 export interface ParsedCodaRecord {
