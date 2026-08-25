@@ -1,0 +1,26 @@
+# Configuration dynamique Traefik pour BRABO — Belgian Smart Accounting & Peppol Hub.
+# Déployé sur le VPS dans : /docker/traefik-svsx/config/brabo.yml
+# (Traefik surveille ce dossier — prise en compte automatique + certificat Let's Encrypt.)
+
+http:
+  routers:
+    brabo:
+      rule: "Host(`brabo.clixite-prod.cloud`)"
+      entrypoints: [websecure]
+      tls:
+        certResolver: le
+      service: brabo-svc
+      middlewares: [security-headers, rate-limit]
+
+    brabo-http:
+      rule: "Host(`brabo.clixite-prod.cloud`)"
+      entrypoints: [web]
+      middlewares: [redirect-https]
+      service: brabo-svc
+
+  services:
+    brabo-svc:
+      loadBalancer:
+        servers:
+          - url: "http://brabo-web:80"
+        passHostHeader: true

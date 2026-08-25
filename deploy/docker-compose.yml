@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  brabo-web:
+    image: nginx:alpine
+    container_name: brabo-web
+    restart: unless-stopped
+    volumes:
+      - /var/www/brabo.clixite-prod.cloud/dist:/usr/share/nginx/html:ro
+      - /etc/nginx/sites-available/brabo.clixite-prod.cloud:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
