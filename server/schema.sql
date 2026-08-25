@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS users (
   first_name    TEXT,
   last_name     TEXT,
   display_name  TEXT,
+  password_hash TEXT,
   locale        TEXT NOT NULL DEFAULT 'fr-BE',
   auth_provider TEXT NOT NULL DEFAULT 'password',
   status        TEXT NOT NULL DEFAULT 'active',
