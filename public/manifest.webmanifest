@@ -1,0 +1,28 @@
+{
+  "name": "BRABO — Comptabilité belge & Hub Peppol",
+  "short_name": "BRABO",
+  "description": "Copilote comptable belge : facturation Peppol B2B 2026, TVA, OGM, CODA et collaboration fiduciaire ITAA.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0e1a",
+  "theme_color": "#0a0e1a",
+  "categories": ["finance", "business", "productivity"],
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
