@@ -3,6 +3,8 @@
 > **Alternative moderne à Falco (Horus Software) pour le contexte fiscal et juridique belge.**
 > Conforme à la loi belge du 20 février 2024 et à l'obligation B2B Peppol 2026.
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fclixite%2Fbrabo-accounting)
+
 ![BRABO Banner](https://img.shields.io/badge/Belgium_Tax_2026-Ready-amber.svg)
 ![Peppol](https://img.shields.io/badge/Peppol_BIS_3.0-EN_16931-emerald.svg)
 ![React](https://img.shields.io/badge/React_19-TypeScript_Tailwind-blue.svg)
