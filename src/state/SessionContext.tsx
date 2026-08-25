@@ -25,6 +25,7 @@ import { dbStore } from '../server/services/dbStore';
 import { DEMO_USERS, resolveDemoUser, seedDemoData } from '../server/services/demoBootstrap';
 import { PERMISSIONS, ROLES } from '../server/types/db';
 import type { Membership, Permission, Role, Tenant, User } from '../server/types/db';
+import type { Language } from '../i18n/translations';
 
 export type SessionStatus = 'loading' | 'unauthenticated' | 'authenticated';
 export type SessionMode = 'client' | 'cabinet';
@@ -32,6 +33,8 @@ export type SessionMode = 'client' | 'cabinet';
 export interface SessionContextValue {
   status: SessionStatus;
   mode: SessionMode;
+  lang: Language;
+  setLang: (lang: Language) => void;
   user: User | null;
   memberships: Membership[];
   tenants: Tenant[];
@@ -77,6 +80,9 @@ function defaultTenantId(memberships: Membership[], mode: SessionMode): string |
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<SessionStatus>('loading');
+  const [lang, setLang] = useState<Language>(() => {
+    return (globalThis.localStorage?.getItem('brabo_lang') as Language) || 'fr';
+  });
   const [user, setUser] = useState<User | null>(null);
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -84,6 +90,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [permissions, setPermissions] = useState<Set<Permission>>(new Set());
   const [refreshTick, setRefreshTick] = useState(0);
   const [forceClientWorkspace, setForceClientWorkspace] = useState(false);
+
+  // Persist the UI language preference.
+  useEffect(() => {
+    globalThis.localStorage?.setItem('brabo_lang', lang);
+  }, [lang]);
 
   /** Recomputes the effective permission set for the active tenant. */
   const refreshPermissions = useCallback(async (userId: string, tenantId: string | null) => {
@@ -242,6 +253,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const value: SessionContextValue = {
     status,
     mode,
+    lang,
+    setLang,
     user,
     memberships,
     tenants,

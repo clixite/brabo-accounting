@@ -1,5 +1,6 @@
-import { ArrowLeft, BadgeCheck, Building2, LogOut, ShieldCheck, ShieldOff } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Building2, Globe, LogOut, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useSession } from '../../state/SessionContext';
+import type { Language } from '../../i18n/translations';
 
 const ROLE_LABELS: Record<string, string> = {
   OWNER: 'Gérant',
@@ -15,7 +16,7 @@ const ROLE_LABELS: Record<string, string> = {
  * proof of the client ↔ cabinet separation.
  */
 export function SessionBar({ syncState }: { syncState?: 'idle' | 'syncing' | 'synced' | 'error' }) {
-  const { user, activeRole, activeTenant, canSelfDeclare, mode, forceClientWorkspace, exitClientWorkspace, logout } =
+  const { user, activeRole, activeTenant, canSelfDeclare, mode, forceClientWorkspace, exitClientWorkspace, logout, lang, setLang } =
     useSession();
 
   const syncIndicator =
@@ -80,6 +81,20 @@ export function SessionBar({ syncState }: { syncState?: 'idle' | 'syncing' | 'sy
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <div className="relative flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+            <Globe className="h-3.5 w-3.5 ml-1.5 text-slate-400" />
+            <select
+              value={lang}
+              onChange={(e) => setLang(e.target.value as Language)}
+              className="bg-transparent text-xs text-slate-200 font-medium pl-1 pr-2 py-1 outline-none cursor-pointer"
+              aria-label="Langue"
+            >
+              <option value="fr" className="bg-slate-800 text-white">FR</option>
+              <option value="nl" className="bg-slate-800 text-white">NL</option>
+              <option value="en" className="bg-slate-800 text-white">EN</option>
+            </select>
+          </div>
+
           {forceClientWorkspace && (
             <button
               onClick={exitClientWorkspace}

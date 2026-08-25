@@ -7,7 +7,6 @@ import {
   INITIAL_BANK_TRANSACTIONS,
   MOCK_CLIENTS
 } from './data/mockBelgianData';
-import type { Language } from './i18n/translations';
 import type { NavTab } from './components/Navigation';
 import { AppShell } from './components/shell/AppShell';
 import { validateInvoiceSchematron } from './services/schematronValidator';
@@ -40,14 +39,9 @@ const ViesLookupModal = lazy(() => import('./components/ViesLookupModal').then((
 const SchematronReportModal = lazy(() => import('./components/SchematronReportModal').then((m) => ({ default: m.SchematronReportModal })));
 
 export function ClientWorkspace() {
-  const { canSelfDeclare, activeTenant, user, activeRole } = useSession();
+  const { canSelfDeclare, activeTenant, user, activeRole, lang } = useSession();
 
-  // 1. Language state
-  const [lang] = useState<Language>(() => {
-    return (localStorage.getItem('brabo_lang') as Language) || 'fr';
-  });
-
-  // 2. Active navigation tab
+  // 1. Active navigation tab
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
 
   // 3. Persistent Data states

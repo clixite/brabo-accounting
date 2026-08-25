@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { 
-  X, 
-  Sparkles, 
-  Receipt
-} from 'lucide-react';
+import { Sparkles, Receipt } from 'lucide-react';
+import { Modal } from './ui/Modal';
+import { Button } from './ui/Button';
+import { Field } from './ui/Field';
+import { Input } from './ui/Input';
+import { Select } from './ui/Select';
+import { Badge, StatusDot } from './ui/Badge';
+import { Money } from './ui/Money';
 import type { PurchaseExpense, BelgianVatRate } from '../types/accounting';
 import { validateBCE, BELGIAN_PCMN_ACCOUNTS } from '../utils/belgianAccounting';
-import confetti from 'canvas-confetti';
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -28,7 +30,6 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, onS
   const [deductibleVatRate, setDeductibleVatRate] = useState<number>(100);
   const [isScanning, setIsScanning] = useState(false);
 
-  if (!isOpen) return null;
 
   const vatAmount = Math.round(amountExclVat * (vatRate / 100) * 100) / 100;
   const amountInclVat = Math.round((amountExclVat + vatAmount) * 100) / 100;
@@ -44,7 +45,7 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, onS
 
     setTimeout(() => {
       setIsScanning(false);
-      confetti({ particleCount: 40, spread: 50, origin: { y: 0.7 } });
+      // No confetti.
 
       if (presetType === 'proximus') {
         setSupplierName('Proximus SA');
@@ -144,258 +145,169 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, onClose, onS
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150 text-slate-200">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-850">
-          <div className="flex items-center space-x-2.5">
-            <div className="p-2 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
-              <Receipt className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-white">Scanner / Saisir une dépense professionnelle</h2>
-              <p className="text-xs text-slate-400">Extraction OCR & règles de déductibilité fiscale belge</p>
-            </div>
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title={
+        <span className="inline-flex items-center gap-2">
+          <Receipt className="w-4 h-4 text-[var(--text-tertiary)]" />
+          Scanner / saisir une dépense
+        </span>
+      }
+      description="OCR + règles de déductibilité fiscale belge"
+      width="lg"
+      footer={
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+            {bceVal.isValid ? (
+              <StatusDot tone="positive">BCE valide</StatusDot>
+            ) : (
+              <StatusDot tone="warning">BCE à vérifier</StatusDot>
+            )}
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={onClose} type="button">
+              Annuler
+            </Button>
+            <Button variant="primary" type="submit" disabled={isScanning}>
+              Enregistrer
+            </Button>
+          </div>
         </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto text-sm">
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
           
-          {/* Preset Buttons for Quick Demo */}
-          <div className="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/60 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-amber-300 flex items-center">
-                <Sparkles className="w-3.5 h-3.5 mr-1" />
-                Simulateur OCR IA (Reçus belges types) :
-              </span>
-              {isScanning && (
-                <span className="text-xs text-amber-400 animate-pulse font-mono">
-                  Analyse OCR en cours...
-                </span>
-              )}
+          <div className="p-3 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-subtle)] space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[length:var(--text-xs)] font-medium text-[var(--text-primary)] inline-flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[var(--text-tertiary)]" />
+                Presets (démo OCR)
+              </div>
+              {isScanning && <StatusDot tone="info">Analyse…</StatusDot>}
             </div>
-
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                onClick={() => loadPreset('proximus')}
-                className="px-2.5 py-1 text-xs rounded bg-slate-900 hover:bg-slate-750 text-slate-200 border border-slate-700 hover:border-amber-500/40 transition"
-              >
-                📡 Proximus (100%)
-              </button>
-              <button
-                type="button"
-                onClick={() => loadPreset('car')}
-                className="px-2.5 py-1 text-xs rounded bg-slate-900 hover:bg-slate-750 text-slate-200 border border-slate-700 hover:border-amber-500/40 transition"
-              >
-                🚗 D'Ieteren Auto (75% / TVA 50%)
-              </button>
-              <button
-                type="button"
-                onClick={() => loadPreset('resto')}
-                className="px-2.5 py-1 text-xs rounded bg-slate-900 hover:bg-slate-750 text-slate-200 border border-slate-700 hover:border-amber-500/40 transition"
-              >
-                🍽️ Restaurant (50% / TVA 0%)
-              </button>
-              <button
-                type="button"
-                onClick={() => loadPreset('social')}
-                className="px-2.5 py-1 text-xs rounded bg-slate-900 hover:bg-slate-750 text-slate-200 border border-slate-700 hover:border-amber-500/40 transition"
-              >
-                🏛️ Liantis INASTI (100% Exonéré)
-              </button>
-              <button
-                type="button"
-                onClick={() => loadPreset('apple')}
-                className="px-2.5 py-1 text-xs rounded bg-slate-900 hover:bg-slate-750 text-slate-200 border border-slate-700 hover:border-amber-500/40 transition"
-              >
-                💻 Apple Matériel (100% Immo)
-              </button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" type="button" onClick={() => loadPreset('proximus')}>
+                Proximus
+              </Button>
+              <Button variant="secondary" type="button" onClick={() => loadPreset('car')}>
+                Véhicule
+              </Button>
+              <Button variant="secondary" type="button" onClick={() => loadPreset('resto')}>
+                Restaurant
+              </Button>
+              <Button variant="secondary" type="button" onClick={() => loadPreset('social')}>
+                Sociales
+              </Button>
+              <Button variant="secondary" type="button" onClick={() => loadPreset('apple')}>
+                IT (immo)
+              </Button>
             </div>
           </div>
 
-          {/* Supplier Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Fournisseur</label>
-              <input
-                type="text"
-                value={supplierName}
-                onChange={(e) => setSupplierName(e.target.value)}
-                required
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
-              />
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Fournisseur" required>
+              <Input value={supplierName} onChange={(e) => setSupplierName(e.target.value)} />
+            </Field>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">N° d'entreprise BCE (Fournisseur)</label>
-              <input
-                type="text"
-                value={supplierBce}
-                onChange={(e) => setSupplierBce(e.target.value)}
-                required
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-amber-500"
-              />
-              {bceVal.isValid ? (
-                <span className="text-[10px] text-emerald-400 mt-0.5 block">✓ BCE Mod97 vérifié</span>
-              ) : (
-                <span className="text-[10px] text-amber-400 mt-0.5 block">{bceVal.error}</span>
-              )}
-            </div>
+            <Field label="BCE fournisseur" required hint={bceVal.isValid ? 'Mod97 OK' : bceVal.error}>
+              <Input value={supplierBce} onChange={(e) => setSupplierBce(e.target.value)} className="font-mono" />
+            </Field>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">N° Facture / Référence ticket</label>
-              <input
-                type="text"
-                value={invoiceNumber}
-                onChange={(e) => setInvoiceNumber(e.target.value)}
-                required
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
-              />
-            </div>
+            <Field label="Référence" required>
+              <Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
+            </Field>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Date de la dépense</label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
-              />
-            </div>
+            <Field label="Date" required>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </Field>
           </div>
 
-          {/* PCMN & Description */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Imputation comptable (PCMN Belge)</label>
-              <select
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="PCMN" hint="Imputation comptable">
+              <Select
                 value={pcmnAccount}
                 onChange={(e) => {
                   setPcmnAccount(e.target.value);
-                  const found = BELGIAN_PCMN_ACCOUNTS.find(a => a.code === e.target.value);
+                  const found = BELGIAN_PCMN_ACCOUNTS.find((a) => a.code === e.target.value);
                   if (found) {
                     if (found.deduct !== undefined) setDeductibilityRate(found.deduct);
                     if (found.vat !== undefined) setVatRate(found.vat as BelgianVatRate);
                   }
                 }}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
               >
-                {BELGIAN_PCMN_ACCOUNTS.filter(a => a.code.startsWith('6') || a.code.startsWith('2')).map(a => (
+                {BELGIAN_PCMN_ACCOUNTS.filter((a) => a.code.startsWith('6') || a.code.startsWith('2')).map((a) => (
                   <option key={a.code} value={a.code}>
                     {a.code} - {a.label}
                   </option>
                 ))}
-              </select>
-            </div>
+              </Select>
+            </Field>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Libellé / Objet</label>
-              <input
-                type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
-              />
-            </div>
+            <Field label="Libellé / objet">
+              <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+            </Field>
           </div>
 
-          {/* Financials */}
-          <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60 space-y-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-300 block">
-              Calcul de la TVA & Déductibilité Fiscale Belge
-            </span>
+          <div className="p-3 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-subtle)] space-y-3">
+            <div className="text-[length:var(--text-xs)] font-medium text-[var(--text-primary)]">TVA & déductibilité</div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Montant HTVA (€)</label>
-                <input
+              <Field label="Montant HTVA (€)">
+                <Input
                   type="number"
                   step="0.01"
                   value={amountExclVat}
                   onChange={(e) => setAmountExclVat(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white font-mono text-sm"
+                  className="font-mono"
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Taux TVA Belge</label>
-                <select
-                  value={vatRate}
-                  onChange={(e) => setVatRate(parseInt(e.target.value, 10) as BelgianVatRate)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white"
-                >
-                  <option value={21}>21% - Taux Normal</option>
-                  <option value={12}>12% - Taux Réduit</option>
-                  <option value={6}>6% - Taux Réduit (Alimentation)</option>
-                  <option value={0}>0% - Taux Zéro / Exonéré</option>
-                </select>
-              </div>
+              <Field label="Taux TVA">
+                <Select value={vatRate} onChange={(e) => setVatRate(parseInt(e.target.value, 10) as BelgianVatRate)}>
+                  <option value={21}>21%</option>
+                  <option value={12}>12%</option>
+                  <option value={6}>6%</option>
+                  <option value={0}>0%</option>
+                </Select>
+              </Field>
 
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Déductibilité Fiscale (%)</label>
-                <select
-                  value={deductibilityRate}
-                  onChange={(e) => setDeductibilityRate(parseInt(e.target.value, 10))}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-amber-300 font-bold"
-                >
-                  <option value={100}>100% (Frais 100% Pro)</option>
-                  <option value={75}>75% (Frais de voiture/carburant)</option>
-                  <option value={50}>50% (Restaurant d'affaires)</option>
-                  <option value={0}>0% (Amendes, non déductible)</option>
-                </select>
+              <Field label="Déductibilité (%)">
+                <Select value={deductibilityRate} onChange={(e) => setDeductibilityRate(parseInt(e.target.value, 10))}>
+                  <option value={100}>100%</option>
+                  <option value={75}>75%</option>
+                  <option value={50}>50%</option>
+                  <option value={0}>0%</option>
+                </Select>
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="p-2 rounded-[var(--radius-md)] bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">TVA totale</div>
+                <div className="mt-0.5"><Money value={vatAmount} /></div>
+              </div>
+              <div className="p-2 rounded-[var(--radius-md)] bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">TVA déductible</div>
+                <div className="mt-0.5"><Money value={deductibleVat} /></div>
+              </div>
+              <div className="p-2 rounded-[var(--radius-md)] bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Base déductible</div>
+                <div className="mt-0.5"><Money value={deductibleAmount} /></div>
+              </div>
+              <div className="p-2 rounded-[var(--radius-md)] bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Total TVAC</div>
+                <div className="mt-0.5"><Money value={amountInclVat} /></div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-700 text-xs">
-              <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
-                <span className="text-slate-400 block text-[10px]">TVA totale</span>
-                <span className="font-mono font-bold text-white">{vatAmount.toFixed(2)} €</span>
-              </div>
-              <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
-                <span className="text-slate-400 block text-[10px]">TVA déductible (Grille 59)</span>
-                <span className="font-mono font-bold text-emerald-400">{deductibleVat.toFixed(2)} €</span>
-              </div>
-              <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
-                <span className="text-slate-400 block text-[10px]">Base déductible IPP/ISOC</span>
-                <span className="font-mono font-bold text-emerald-400">{deductibleAmount.toFixed(2)} €</span>
-              </div>
-              <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
-                <span className="text-slate-400 block text-[10px]">Total TTC / TVAC</span>
-                <span className="font-mono font-bold text-amber-400">{amountInclVat.toFixed(2)} €</span>
-              </div>
+            <div className="flex items-center gap-2 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+              <Badge tone="info" dot>Grille 59</Badge>
+              <span>TVA déductible (démo)</span>
             </div>
-
-          </div>
-
-          {/* Footer */}
-          <div className="flex justify-end space-x-3 pt-3 border-t border-slate-800">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 text-xs font-bold rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-lg shadow-amber-500/20"
-            >
-              Enregistrer la dépense
-            </button>
           </div>
 
         </form>
-
-      </div>
-    </div>
+      </Modal>
   );
 };
