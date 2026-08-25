@@ -17,6 +17,7 @@ import type { Invoice, PurchaseExpense, BankTransaction, CompanyProfile } from '
 import type { Language } from '../i18n/translations';
 import { translations } from '../i18n/translations';
 import { calculateVatGrids } from '../utils/belgianAccounting';
+import { runFiscalAudit } from '../services/fiscalAudit';
 import { Money } from './ui/Money';
 import { Badge } from './ui/Badge';
 import { cn } from './ui/cn';
@@ -131,6 +132,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const vatDeclaration = calculateVatGrids(invoices, purchases, '2026-Q1');
   const vatDue = vatDeclaration.grid71 > 0 ? vatDeclaration.grid71 : vatDeclaration.grid72;
   const vatIsCredit = vatDeclaration.grid71 === 0;
+  const fiscalAudit = runFiscalAudit(invoices, purchases, company, '2026-Q1');
 
   const recentInvoices = [...invoices].slice(0, 4);
   const recentPurchases = [...purchases].slice(0, 4);
@@ -156,6 +158,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Badge tone="positive" dot>{'100% prêt pour le B2B 2026'}</Badge>
+            <Badge
+              tone={fiscalAudit.totalErrors > 0 ? 'critical' : fiscalAudit.totalWarnings > 0 ? 'warning' : 'neutral'}
+              dot
+            >
+              Risque fiscal {fiscalAudit.riskScore}/100
+            </Badge>
             <span className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Régime TVA : trimestriel</span>
           </div>
           <div>
