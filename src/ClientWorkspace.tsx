@@ -152,7 +152,7 @@ export function ClientWorkspace() {
   const [schematronReport, setSchematronReport] = useState<ValidationReport | null>(null);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
-  // Global Cmd/Ctrl+K shortcut → command palette.
+  // Global Cmd/Ctrl+K shortcut → command palette ; Alt+I/E/G → actions rapides.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -160,11 +160,12 @@ export function ClientWorkspace() {
         setIsCommandPaletteOpen((v) => !v);
         return;
       }
-      // Alt+I → nouvelle facture ; Alt+E → scanner une dépense ; Alt+G → OGM.
       if (e.altKey && !e.ctrlKey && !e.metaKey) {
         if (e.key.toLowerCase() === 'i') {
           e.preventDefault();
-          handleOpenNewInvoice();
+          setEditingInvoice(null);
+          setDefaultInvoiceType('invoice');
+          setIsInvoiceModalOpen(true);
         } else if (e.key.toLowerCase() === 'e') {
           e.preventDefault();
           setIsExpenseModalOpen(true);

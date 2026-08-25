@@ -8,7 +8,8 @@
 ![Belgium Tax 2026](https://img.shields.io/badge/Belgium_Tax_2026-Ready-amber.svg)
 ![Peppol](https://img.shields.io/badge/Peppol_BIS_3.0-EN_16931-emerald.svg)
 ![React](https://img.shields.io/badge/React_19-TypeScript_Tailwind-blue.svg)
-![Tests](https://img.shields.io/badge/tests-111-green.svg)
+![PWA](https://img.shields.io/badge/PWA-installable-9cf.svg)
+![Tests](https://img.shields.io/badge/tests-122-green.svg)
 
 ---
 
@@ -97,6 +98,21 @@ La partie encodage + optimisation basique est **automatique** ; le fiscaliste **
 - **Docs** : jsPDF + autotable (PDF), QRCode (SEPA), canvas-confetti.
 - **Icons** : Lucide React.
 - **Langues** : Français (BE), Nederlands (BE), English.
+
+---
+
+## ✨ Fonctionnalités UX récentes
+
+- **PWA installable** : manifest + service worker (shell hors-ligne, assets cache-first).
+- **Palette de commandes (`Cmd/Ctrl+K`)** : recherche globale (navigation, actions, factures, clients, BCE, OGM).
+- **Raccourcis clavier** : `Alt+I` nouvelle facture · `Alt+E` scanner une dépense · `Alt+G` générateur OGM.
+- **Notifications toast** : succès/erreur/info avec barre de progression (enregistrements, transmissions Peppol, paiements).
+- **Sauvegarde/restauration JSON** : export du dossier complet (factures, dépenses, banque, entité).
+- **États vides** élégants (`EmptyState` / `TableEmptyRow`) sur les listes vides.
+- **Sparklines SVG** sur les KPI du dashboard + **badge de risque fiscal** (0-100, moteur d'audit).
+- **Export CSV** (fr-BE, point-virgule) des rapports (CA mensuel, P&L, trésorerie).
+- **Design system tokens** : thème sombre premium, composants unifiés (Card, Badge, Button, Input, DataTable, SplitView…).
+- **Styles d'impression** dédiés (impression propre des documents).
 
 ---
 
