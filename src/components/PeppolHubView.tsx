@@ -1,21 +1,27 @@
 import React, { useState } from 'react';
-import { 
-  Network, 
-  Search, 
-  CheckCircle2, 
-  AlertCircle, 
-  FileCode, 
-  ShieldCheck, 
-  ArrowUpRight, 
+import {
+  Network,
+  Search,
+  CheckCircle2,
+  AlertCircle,
+  FileCode,
+  ShieldCheck,
+  ArrowUpRight,
   RefreshCw,
   Globe,
-  ClipboardCheck
+  ClipboardCheck,
 } from 'lucide-react';
 import type { CompanyProfile, Invoice, PurchaseExpense } from '../types/accounting';
 import type { Language } from '../i18n/translations';
 import { translations } from '../i18n/translations';
 import { validateBCE } from '../utils/belgianAccounting';
 import { peppolStatusLabel } from '../services/peppolService';
+import { Card, CardHeader, CardBody } from './ui/Card';
+import { Button, IconButton } from './ui/Button';
+import { Badge, StatusDot } from './ui/Badge';
+import { Input } from './ui/Input';
+import { cn } from './ui/cn';
+import { CodeChip } from './ui/Badge';
 
 interface PeppolHubViewProps {
   company: CompanyProfile;
@@ -56,8 +62,8 @@ export const PeppolHubView: React.FC<PeppolHubViewProps> = ({
     supportedProfiles: [
       'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0 (BIS Billing 3.0 Invoice)',
       'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0 (BIS Billing 3.0 Credit Note)',
-      'urn:fdc:peppol.eu:poacc:bis:ordering:3 (Peppol Ordering 3.0)'
-    ]
+      'urn:fdc:peppol.eu:poacc:bis:ordering:3 (Peppol Ordering 3.0)',
+    ],
   });
   const [isSearching, setIsSearching] = useState(false);
 
@@ -86,7 +92,7 @@ export const PeppolHubView: React.FC<PeppolHubViewProps> = ({
           supportedProfiles: [
             'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0 (BIS Billing 3.0 Invoice)',
             'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0 (BIS Billing 3.0 Credit Note)',
-          ]
+          ],
         });
       } else {
         setLookupResult({
@@ -96,291 +102,275 @@ export const PeppolHubView: React.FC<PeppolHubViewProps> = ({
           name: '',
           scheme: '',
           smpProvider: '',
-          supportedProfiles: []
+          supportedProfiles: [],
         });
       }
     }, 450);
   };
 
-  const peppolInvoices = invoices.filter(i => i.peppolStatus?.isSent);
-  const pendingInvoices = invoices.filter(i => i.type === 'invoice' && !i.peppolStatus?.isSent);
+  const peppolInvoices = invoices.filter((i) => i.peppolStatus?.isSent);
+  const pendingInvoices = invoices.filter((i) => i.type === 'invoice' && !i.peppolStatus?.isSent);
 
   return (
-    <div className="space-y-6">
-      
-      {/* Hero Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center space-x-2">
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-              Loi Belge du 20/02/2024
-            </span>
-            <span className="text-xs text-slate-400">Échéance légale : 1er Janvier 2026</span>
+    <div className="space-y-4">
+      {/* ── Hero header ─────────────────────────────────────────────────── */}
+      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+            <Badge tone="warning" dot>Loi belge du 20/02/2024</Badge>
+            <span>Échéance légale : 1er janvier 2026</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center mt-1">
-            <Network className="w-6 h-6 mr-2 text-amber-400" />
+          <h1 className="text-[length:var(--text-lg)] font-semibold text-[var(--text-primary)] flex items-center gap-2">
+            <Network className="w-5 h-5 text-[var(--text-tertiary)]" />
             {t.title}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            {t.subtitle}
-          </p>
+          <p className="text-[length:var(--text-xs)] text-[var(--text-secondary)]">{t.subtitle}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs flex items-center">
-            <ShieldCheck className="w-4 h-4 mr-1.5 text-emerald-400" />
-            <span>Point d'accès Peppol AS4 Connecté</span>
-          </div>
-
-          <button
-            onClick={onOpenVies}
-            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-blue-500/40 text-xs flex items-center transition"
-          >
-            <Globe className="w-3.5 h-3.5 mr-1.5 text-blue-400" />
+          <Button variant="secondary" onClick={onOpenVies}>
+            <Globe className="w-4 h-4 text-[var(--state-info-text)]" />
             Vérifier TVA VIES
-          </button>
-
-          <button
+          </Button>
+          <Button
+            variant="secondary"
             onClick={() => {
               const firstInvoice = invoices.find((i) => i.type === 'invoice');
               if (firstInvoice) onValidateSchematron(firstInvoice);
             }}
-            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-emerald-500/40 text-xs flex items-center transition"
           >
-            <ClipboardCheck className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
+            <ClipboardCheck className="w-4 h-4 text-[var(--state-positive-text)]" />
             Audit Schematron EN 16931
-          </button>
+          </Button>
         </div>
       </div>
 
-      {/* Lookup Card */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-white flex items-center">
-            <Search className="w-4 h-4 mr-2 text-amber-400" />
-            {t.directoryLookup}
-          </h3>
-          <span className="text-[11px] text-slate-400 font-mono">Annuaire officiel Peppol (Belgique & Europe)</span>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              value={bceQuery}
-              onChange={(e) => setBceQuery(e.target.value)}
-              placeholder={t.lookupPlaceholder}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-amber-500"
-            />
+      {/* ── Directory lookup ────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Search className="w-4 h-4 text-[var(--text-tertiary)]" />
+              {t.directoryLookup}
+            </span>
+          }
+          description="Annuaire officiel Peppol (Belgique & Europe)"
+        />
+        <CardBody className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-[var(--text-tertiary)] absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                value={bceQuery}
+                onChange={(e) => setBceQuery(e.target.value)}
+                placeholder={t.lookupPlaceholder}
+                className="pl-9 font-mono"
+              />
+            </div>
+            <Button variant="primary" onClick={handleLookup} disabled={isSearching} className="sm:w-auto">
+              {isSearching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+              {t.checkButton}
+            </Button>
           </div>
 
-          <button
-            onClick={handleLookup}
-            disabled={isSearching}
-            className="px-5 py-2.5 text-xs font-bold rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition flex items-center justify-center shrink-0"
-          >
-            {isSearching ? <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" /> : <Search className="w-4 h-4 mr-1.5" />}
-            {t.checkButton}
-          </button>
-        </div>
+          {lookupResult?.searched && (
+            <div
+              className={cn(
+                'rounded-[var(--radius-md)] border p-4 space-y-3',
+                lookupResult.found
+                  ? 'bg-[var(--state-positive-bg)] border-[var(--state-positive-border)] text-[var(--state-positive-text)]'
+                  : 'bg-[var(--state-critical-bg)] border-[var(--state-critical-border)] text-[var(--state-critical-text)]',
+              )}
+            >
+              {lookupResult.found ? (
+                <>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-5 h-5 shrink-0" />
+                      <div>
+                        <div className="text-[length:var(--text-sm)] font-semibold text-[var(--text-primary)]">
+                          {lookupResult.name}
+                        </div>
+                        <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)] font-mono tnum">
+                          N° d'entreprise : {lookupResult.bce}
+                        </div>
+                      </div>
+                    </div>
+                    <Badge tone="positive">Enregistré sur Peppol</Badge>
+                  </div>
 
-        {/* Lookup Results */}
-        {lookupResult && lookupResult.searched && (
-          <div className={`p-4 rounded-xl border text-xs ${
-            lookupResult.found 
-              ? 'bg-emerald-950/30 border-emerald-500/30 text-slate-200' 
-              : 'bg-red-950/30 border-red-500/30 text-red-200'
-          }`}>
-            {lookupResult.found ? (
-              <div className="space-y-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-[var(--border-subtle)] text-[length:var(--text-2xs)]">
                     <div>
-                      <span className="font-bold text-emerald-300 text-sm block">{lookupResult.name}</span>
-                      <span className="font-mono text-[11px] text-slate-400">N° d'entreprise : {lookupResult.bce}</span>
+                      <div className="text-[var(--text-tertiary)]">Identifiant participant (EAS 0208) :</div>
+                      <CodeChip>{lookupResult.scheme}</CodeChip>
+                    </div>
+                    <div>
+                      <div className="text-[var(--text-tertiary)]">SMP Provider :</div>
+                      <div className="text-[var(--text-secondary)]">{lookupResult.smpProvider}</div>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    Enregistré sur Peppol
-                  </span>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-[11px]">
                   <div>
-                    <span className="text-slate-400 block">Identifiant Participant Peppol (EAS 0208) :</span>
-                    <span className="font-mono font-bold text-amber-300">{lookupResult.scheme}</span>
+                    <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)] font-semibold mb-1">
+                      Profils e-invoicing supportés
+                    </div>
+                    <ul className="space-y-1">
+                      {lookupResult.supportedProfiles.map((prof, i) => (
+                        <li key={i} className="font-mono tnum text-[length:var(--text-2xs)] text-[var(--state-positive-text)] flex items-center">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--state-positive-solid)] mr-1.5" />
+                          {prof}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
+                </>
+              ) : (
+                <div className="flex items-center gap-2.5">
+                  <AlertCircle className="w-5 h-5 shrink-0" />
                   <div>
-                    <span className="text-slate-400 block">SMP Provider :</span>
-                    <span className="text-slate-300">{lookupResult.smpProvider}</span>
+                    <div className="font-semibold text-[var(--text-primary)]">Numéro non trouvé dans l'annuaire Peppol</div>
+                    <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                      Vérifiez le format BCE (10 chiffres) ou utilisez la passerelle de secours Hermès du SPF Finances.
+                    </div>
                   </div>
                 </div>
+              )}
+            </div>
+          )}
+        </CardBody>
+      </Card>
 
-                <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold block mb-1">Profils e-Invoicing supportés :</span>
-                  <ul className="space-y-1">
-                    {lookupResult.supportedProfiles.map((prof, i) => (
-                      <li key={i} className="font-mono text-[10px] text-emerald-400/90 flex items-center">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5" />
-                        {prof}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-2">
-                <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-                <div>
-                  <span className="font-bold block">Numéro non trouvé dans l'annuaire Peppol</span>
-                  <span className="text-[11px] text-red-300/80">
-                    Vérifiez le format du numéro BCE belge (10 chiffres) ou utilisez la passerelle de secours Hermes du SPF Finances.
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Outbox & Info Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
+      {/* ── Outbox + Compliance ─────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Outbox */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h3 className="text-sm font-bold text-white flex items-center">
-              <ArrowUpRight className="w-4 h-4 mr-2 text-emerald-400" />
-              {t.outboxTitle}
-            </h3>
-            <span className="text-xs text-slate-400">{pendingInvoices.length} à envoyer · {peppolInvoices.length} transmises</span>
-          </div>
-
-          {/* Pending — send via Peppol */}
-          {pendingInvoices.length > 0 && (
-            <div>
-              <div className="text-[10px] uppercase text-slate-500 font-bold mb-2">À envoyer</div>
-              <div className="space-y-2">
+        <Card flush>
+          <CardHeader
+            title={
+              <span className="inline-flex items-center gap-2">
+                <ArrowUpRight className="w-4 h-4 text-[var(--state-positive-text)]" />
+                {t.outboxTitle}
+              </span>
+            }
+            description={`${pendingInvoices.length} à envoyer · ${peppolInvoices.length} transmises`}
+          />
+          <CardBody className="space-y-4">
+            {pendingInvoices.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)] font-semibold">
+                  À envoyer
+                </div>
                 {pendingInvoices.map((inv) => (
                   <div
                     key={inv.id}
-                    className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60 flex items-center justify-between text-xs"
+                    className="flex items-center justify-between gap-3 p-2.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-sunken)]"
                   >
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-mono font-bold text-white">{inv.invoiceNumber}</span>
-                        <span className="text-slate-400">→</span>
-                        <span className="font-semibold text-slate-200">{inv.client.name}</span>
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-2 text-[length:var(--text-xs)]">
+                        <span className="font-mono tnum font-semibold text-[var(--text-primary)]">{inv.invoiceNumber}</span>
+                        <span className="text-[var(--text-tertiary)]">→</span>
+                        <span className="font-medium text-[var(--text-secondary)] truncate">{inv.client.name}</span>
                       </div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">
-                        {inv.totalInclVat.toFixed(2)} € · {inv.client.isPeppolEnabled ? 'Endpoint Peppol détecté' : 'Acheminement Hermès'}
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                        {inv.totalInclVat.toFixed(2)} € ·{' '}
+                        {inv.client.isPeppolEnabled ? 'Endpoint Peppol détecté' : 'Acheminement Hermès'}
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2 shrink-0">
-                      <button
-                        onClick={() => onViewInvoiceXml(inv)}
-                        className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg transition"
-                        title="Voir le code XML UBL 2.1"
-                      >
+                    <div className="flex items-center gap-1 shrink-0">
+                      <IconButton label="Voir UBL" onClick={() => onViewInvoiceXml(inv)}>
                         <FileCode className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => onSendPeppol(inv)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-bold transition"
-                      >
-                        <ArrowUpRight className="w-3.5 h-3.5" /> Envoyer
-                      </button>
+                      </IconButton>
+                      <Button variant="primary" className="h-[var(--control-height-sm)] px-2" onClick={() => onSendPeppol(inv)}>
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                        Envoyer
+                      </Button>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Transmitted */}
-          <div>
-            <div className="text-[10px] uppercase text-slate-500 font-bold mb-2">Transmises</div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
+              <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)] font-semibold">
+                Transmises
+              </div>
               {peppolInvoices.length === 0 && (
-                <p className="text-xs text-slate-500">Aucune facture transmise pour l'instant.</p>
+                <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">Aucune facture transmise pour l'instant.</p>
               )}
               {peppolInvoices.map((inv) => (
                 <div
                   key={inv.id}
-                  className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60 flex items-center justify-between text-xs"
+                  className="flex items-center justify-between gap-3 p-2.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-sunken)]"
                 >
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-mono font-bold text-white">{inv.invoiceNumber}</span>
-                      <span className="text-slate-400">→</span>
-                      <span className="font-semibold text-slate-200">{inv.client.name}</span>
+                  <div className="min-w-0 space-y-0.5">
+                    <div className="flex items-center gap-2 text-[length:var(--text-xs)]">
+                      <span className="font-mono tnum font-semibold text-[var(--text-primary)]">{inv.invoiceNumber}</span>
+                      <span className="text-[var(--text-tertiary)]">→</span>
+                      <span className="font-medium text-[var(--text-secondary)] truncate">{inv.client.name}</span>
                     </div>
-                    <div className="flex items-center space-x-2 text-[11px] text-slate-400 mt-0.5">
-                      <span className="font-mono">{inv.peppolStatus?.messageId}</span>
-                      <span>•</span>
-                      <span className={`font-bold ${
-                        inv.peppolStatus?.deliveryResponseCode === 'REJECTED'
-                          ? 'text-red-400'
-                          : inv.peppolStatus?.deliveryResponseCode === 'PENDING'
-                            ? 'text-amber-400'
-                            : 'text-emerald-400'
-                      }`}>
+                    <div className="flex items-center gap-2 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                      <span className="font-mono tnum">{inv.peppolStatus?.messageId}</span>
+                      <span>·</span>
+                      <StatusDot
+                        tone={
+                          inv.peppolStatus?.deliveryResponseCode === 'REJECTED'
+                            ? 'critical'
+                            : inv.peppolStatus?.deliveryResponseCode === 'PENDING'
+                              ? 'warning'
+                              : 'positive'
+                        }
+                      >
                         {peppolStatusLabel(inv.peppolStatus?.deliveryResponseCode)}
-                      </span>
+                      </StatusDot>
                     </div>
                   </div>
-                  <button
-                    onClick={() => onViewInvoiceXml(inv)}
-                    className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg transition"
-                    title="Voir le code XML UBL 2.1"
-                  >
+                  <IconButton label="Voir UBL" onClick={() => onViewInvoiceXml(inv)}>
                     <FileCode className="w-4 h-4" />
-                  </button>
+                  </IconButton>
                 </div>
               ))}
             </div>
-          </div>
-        </div>
+          </CardBody>
+        </Card>
 
-        {/* Compliance Guide */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h3 className="text-sm font-bold text-white flex items-center">
-              <ShieldCheck className="w-4 h-4 mr-2 text-amber-400" />
-              Conformité Légale Belge 2026
-            </h3>
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30">
-              CEN/TC 434
-            </span>
-          </div>
-
-          <div className="space-y-3 text-xs text-slate-300 leading-relaxed">
-            <div className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60 space-y-1">
-              <span className="font-bold text-white block">1. Format UBL 2.1 obligatoire</span>
-              <p className="text-[11px] text-slate-400">
-                À partir du 1er janvier 2026, l'envoi de simples factures PDF par e-mail entre assujettis belges B2B est prohibé. Tout flux doit transiter en UBL conforme EN 16931.
-              </p>
-            </div>
-
-            <div className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60 space-y-1">
-              <span className="font-bold text-white block">2. Protocole sécurisé AS4 / Peppol</span>
-              <p className="text-[11px] text-slate-400">
-                L'échange se fait de point d'accès à point d'accès via le réseau Peppol européen, garantissant l'authenticité de l'origine et l'intégrité du contenu.
-              </p>
-            </div>
-
-            <div className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60 space-y-1">
-              <span className="font-bold text-white block">3. Passerelle de secours Hermès (SPF Finances)</span>
-              <p className="text-[11px] text-slate-400">
-                Si un client n'a pas encore configuré son propre point d'accès, Brabo achemine automatiquement la facture vers le portail fédéral Hermès du SPF Finances.
-              </p>
-            </div>
-          </div>
-        </div>
-
+        {/* Compliance guide */}
+        <Card flush>
+          <CardHeader
+            title={
+              <span className="inline-flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[var(--text-tertiary)]" />
+                Conformité légale belge 2026
+              </span>
+            }
+            actions={<Badge tone="accent">CEN/TC 434</Badge>}
+          />
+          <CardBody className="space-y-3">
+            {[
+              {
+                n: '1',
+                title: 'Format UBL 2.1 obligatoire',
+                text: "À partir du 1er janvier 2026, l'envoi de simples factures PDF par e-mail entre assujettis belges B2B est prohibé. Tout flux doit transiter en UBL conforme EN 16931.",
+              },
+              {
+                n: '2',
+                title: 'Protocole sécurisé AS4 / Peppol',
+                text: "L'échange se fait de point d'accès à point d'accès via le réseau Peppol européen, garantissant l'authenticité de l'origine et l'intégrité du contenu.",
+              },
+              {
+                n: '3',
+                title: 'Passerelle de secours Hermès (SPF Finances)',
+                text: "Si un client n'a pas encore son point d'accès, Brabo achemine automatiquement la facture vers le portail fédéral Hermès du SPF Finances.",
+              },
+            ].map((item) => (
+              <div key={item.n} className="p-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-sunken)] space-y-1">
+                <div className="text-[length:var(--text-xs)] font-semibold text-[var(--text-primary)]">
+                  {item.n}. {item.title}
+                </div>
+                <p className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)] leading-relaxed">{item.text}</p>
+              </div>
+            ))}
+          </CardBody>
+        </Card>
       </div>
-
     </div>
   );
 };
