@@ -1,0 +1,148 @@
+/* ============================================================================
+   BRABO — Design tokens (design system)
+   Single source of truth for the UI primitives & all token-based components.
+   Default theme is DARK (the application's native look & feel).
+   ============================================================================ */
+
+:root {
+  color-scheme: dark;
+
+  /* ── Surfaces ─────────────────────────────────────────────────────────── */
+  --bg-app: #0b1120;
+  --bg-chrome: #0b1120;
+  --bg-sidebar: #101827;
+  --bg-surface: #1a2334;
+  --bg-surface-raised: #243049;
+  --bg-subtle: #162032;
+  --bg-hover: #26334a;
+  --bg-active: #33415a;
+  --bg-sunken: #0f172a;
+  --bg-overlay: rgba(2, 6, 23, 0.72);
+
+  /* ── Borders ─────────────────────────────────────────────────────────── */
+  --border-subtle: #233047;
+  --border-default: #33415a;
+  --border-strong: #46546f;
+  --border-focus: #f59e0b;
+
+  /* ── Text ────────────────────────────────────────────────────────────── */
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+  --text-disabled: #64748b;
+  --text-inverse: #0f172a;
+
+  /* ── Accent (amber — Belgian identity) ────────────────────────────────── */
+  --accent-solid: #f59e0b;
+  --accent-text: #1c1917;
+  --accent-hover: #fbbf24;
+  --accent-soft: rgba(245, 158, 11, 0.12);
+  --accent-soft-border: rgba(245, 158, 11, 0.35);
+
+  /* ── Semantic states ─────────────────────────────────────────────────── */
+  --state-info-bg: rgba(59, 130, 246, 0.12);
+  --state-info-border: rgba(59, 130, 246, 0.4);
+  --state-info-text: #93c5fd;
+  --state-info-solid: #3b82f6;
+
+  --state-positive-bg: rgba(34, 197, 94, 0.12);
+  --state-positive-border: rgba(34, 197, 94, 0.4);
+  --state-positive-text: #86efac;
+  --state-positive-solid: #22c55e;
+
+  --state-warning-bg: rgba(245, 158, 11, 0.12);
+  --state-warning-border: rgba(245, 158, 11, 0.4);
+  --state-warning-text: #fcd34d;
+  --state-warning-solid: #f59e0b;
+
+  --state-critical-bg: rgba(239, 68, 68, 0.12);
+  --state-critical-border: rgba(239, 68, 68, 0.4);
+  --state-critical-text: #fca5a5;
+  --state-critical-solid: #ef4444;
+  --state-critical-hover: #dc2626;
+
+  --state-neutral-bg: rgba(100, 116, 139, 0.12);
+  --state-neutral-border: rgba(100, 116, 139, 0.4);
+  --state-neutral-text: #cbd5e1;
+
+  /* ── Typography ──────────────────────────────────────────────────────── */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+
+  /* ── Sizing ──────────────────────────────────────────────────────────── */
+  --control-height: 2.5rem;
+  --control-height-sm: 2rem;
+  --row-height: 2.5rem;
+  --topbar-height: 3.5rem;
+  --sidebar-width: 15rem;
+  --sidebar-width-collapsed: 4rem;
+
+  /* ── Radius ──────────────────────────────────────────────────────────── */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-full: 9999px;
+
+  /* ── Elevation ───────────────────────────────────────────────────────── */
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-modal: 0 10px 40px rgba(0, 0, 0, 0.55);
+
+  /* ── Legacy (Vite scaffold — kept for back-compat) ───────────────────── */
+  --text: #94a3b8;
+  --text-h: #f1f5f9;
+  --bg: #0f172a;
+  --border: #33415a;
+  --code-bg: #1a2334;
+  --accent-bg: rgba(245, 158, 11, 0.1);
+  --accent-border: rgba(245, 158, 11, 0.4);
+  --social-bg: rgba(26, 35, 52, 0.5);
+}
+
+/* ── Light theme (optional / future) ─────────────────────────────────────── */
+[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-app: #f8fafc;
+  --bg-chrome: #f1f5f9;
+  --bg-sidebar: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-surface-raised: #f8fafc;
+  --bg-subtle: #f1f5f9;
+  --bg-hover: #e2e8f0;
+  --bg-active: #cbd5e1;
+  --bg-sunken: #f8fafc;
+  --bg-overlay: rgba(15, 23, 42, 0.4);
+
+  --border-subtle: #e2e8f0;
+  --border-default: #cbd5e1;
+  --border-strong: #94a3b8;
+  --border-focus: #d97706;
+
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-tertiary: #64748b;
+  --text-disabled: #94a3b8;
+  --text-inverse: #ffffff;
+
+  --accent-solid: #f59e0b;
+  --accent-text: #fff;
+  --accent-hover: #d97706;
+  --accent-soft: rgba(245, 158, 11, 0.1);
+  --accent-soft-border: rgba(245, 158, 11, 0.3);
+}
