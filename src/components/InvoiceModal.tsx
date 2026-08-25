@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  X, 
-  Plus, 
-  Trash2, 
-  CheckCircle2, 
-  AlertCircle, 
-  FileText, 
-  Send, 
-  Download, 
-  Building, 
-  Hash 
+import {
+  Plus,
+  Trash2,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
+  Send,
+  Download,
+  Building,
+  Hash,
 } from 'lucide-react';
+import { Modal } from './ui/Modal';
+import { Button } from './ui/Button';
+import { Badge, StatusDot } from './ui/Badge';
+import { formatDate } from '../utils/format';
+
+// Note: internals will be migrated to Field/Input/Select in a follow-up pass; the shell/footers are unified first.
+
 import type { Invoice, InvoiceLine, ClientParty, CompanyProfile, DocumentType, BelgianVatRegime } from '../types/accounting';
 import { validateBCE, generateOGM } from '../utils/belgianAccounting';
 import { generateInvoicePDF } from '../services/pdfGenerator';
-import confetti from 'canvas-confetti';
 
 interface InvoiceModalProps {
   isOpen: boolean;
@@ -160,7 +165,6 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   const totalInclVat = subtotalExclVat + totalVatAmount;
   const bceValidation = validateBCE(clientBce);
 
-  if (!isOpen) return null;
 
   const handleSave = (sendViaPeppol = false) => {
     const client: ClientParty = {
@@ -210,13 +214,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
       createdAt: initialData?.createdAt || new Date().toISOString(),
     };
 
-    if (sendViaPeppol) {
-      confetti({
-        particleCount: 80,
-        spread: 60,
-        origin: { y: 0.6 }
-      });
-    }
+    // No confetti: e-invoicing is a legal/audit action.
 
     onSave(newInvoice);
     onClose();
@@ -257,38 +255,49 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-4xl w-full shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150 text-slate-200">
-        
-        {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-850">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
-              <FileText className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-white">
-                {initialData ? 'Modifier le document' : 'Créer un document de vente'}
-              </h2>
-              <p className="text-xs text-slate-400">
-                Normes belges : TVA, Modulo 97 (OGM) & Passerelle Peppol UBL 2.1
-              </p>
-            </div>
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title={
+        <span className="inline-flex items-center gap-2">
+          <FileText className="w-4 h-4 text-[var(--text-tertiary)]" />
+          {initialData ? 'Modifier un document de vente' : 'Créer un document de vente'}
+        </span>
+      }
+      description="TVA belge, OGM Mod 97, Peppol UBL"
+      width="xl"
+      footer={
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+            <StatusDot tone={bceValidation.isValid ? 'positive' : 'warning'}>
+              {bceValidation.isValid ? 'BCE client valide' : 'BCE client à vérifier'}
+            </StatusDot>
+            <Badge tone="neutral">Éch. {formatDate(computeDueDate())}</Badge>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={onClose} type="button">
+              Annuler
+            </Button>
+            <Button variant="secondary" onClick={handleDownloadPdf} type="button">
+              <Download className="w-4 h-4" />
+              PDF
+            </Button>
+            <Button variant="primary" onClick={() => handleSave(true)} type="button" title="Émettre et livrer via Peppol">
+              <Send className="w-4 h-4" />
+              Émettre (Peppol)
+            </Button>
+            <Button variant="primary" onClick={() => handleSave(false)} type="button" title="Enregistrer (sans envoi)">
+              <CheckCircle2 className="w-4 h-4" />
+              Enregistrer
+            </Button>
+          </div>
         </div>
-
-        {/* Modal Body */}
-        <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
-          
-          {/* Top Bar: Doc Type & Numbering */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-800/60 p-4 rounded-xl border border-slate-700/60">
-            <div>
+      }
+    >
+      <div className="space-y-4">
+        {/* Top Bar: Doc Type & Numbering */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-800/60 p-4 rounded-xl border border-slate-700/60">
+          <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">Type de document</label>
               <select
                 value={docType}
@@ -581,49 +590,6 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
           </div>
 
         </div>
-
-        {/* Modal Footer Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-slate-800 bg-slate-900">
-          <div className="flex items-center space-x-2">
-            <button
-              type="button"
-              onClick={handleDownloadPdf}
-              className="inline-flex items-center px-3 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
-            >
-              <Download className="w-3.5 h-3.5 mr-1.5" />
-              Aperçu PDF
-            </button>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
-            >
-              Annuler
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleSave(false)}
-              className="px-4 py-2 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg transition"
-            >
-              Enregistrer
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleSave(true)}
-              className="inline-flex items-center px-4 py-2 text-xs font-bold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 rounded-lg shadow-lg shadow-amber-500/20 transition"
-            >
-              <Send className="w-3.5 h-3.5 mr-1.5 stroke-[2.5]" />
-              Émettre & Livrer via Peppol
-            </button>
-          </div>
-        </div>
-
-      </div>
-    </div>
+    </Modal>
   );
 };
