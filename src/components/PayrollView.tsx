@@ -3,6 +3,10 @@ import { Briefcase, Wallet, TrendingDown, TrendingUp } from 'lucide-react';
 import type { Language } from '../i18n/translations';
 import { translations } from '../i18n/translations';
 import { computePayroll } from '../services/payroll';
+import { Card, CardHeader, CardBody } from './ui/Card';
+import { Badge } from './ui/Badge';
+import { Input } from './ui/Input';
+import { cn } from './ui/cn';
 
 const eur = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' });
 
@@ -16,87 +20,133 @@ export function PayrollView({ lang }: { lang: Language }) {
   const payroll = computePayroll(gross);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2 text-amber-400 text-xs font-bold tracking-wider uppercase mb-1">
-          <Briefcase className="h-4 w-4" /> Paie & charges sociales
+    <div className="space-y-4">
+      {/* ── Hero header ───────────────────────────────────────────────────── */}
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+          <Badge tone="accent" dot>Paie & charges sociales</Badge>
+          <span>Barèmes ONSS belges</span>
         </div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{t.title}</h1>
-        <p className="text-xs sm:text-sm text-slate-400 mt-1">{t.subtitle}</p>
+        <h1 className="text-[length:var(--text-lg)] font-semibold text-[var(--text-primary)] flex items-center gap-2">
+          <Briefcase className="w-5 h-5 text-[var(--text-tertiary)]" />
+          {t.title}
+        </h1>
+        <p className="text-[length:var(--text-xs)] text-[var(--text-secondary)]">{t.subtitle}</p>
       </div>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
-        <div>
-          <label className="text-xs font-bold text-slate-200">{t.gross}</label>
-          <div className="flex items-center gap-3 mt-2">
-            <input
-              type="number"
-              value={gross}
-              onChange={(e) => setGross(Math.max(0, parseInt(e.target.value) || 0))}
-              className="w-36 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono font-bold text-amber-300"
-            />
-            <input
-              type="range"
-              min="1500"
-              max="10000"
-              step="100"
-              value={gross}
-              onChange={(e) => setGross(parseInt(e.target.value))}
-              className="flex-1 accent-amber-500 cursor-pointer"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-center">
-          <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
-            <div className="text-[10px] uppercase text-slate-500">Brut mensuel</div>
-            <div className="font-mono font-bold text-slate-100">{eur.format(payroll.grossMonthly)}</div>
-          </div>
-          <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
-            <div className="text-[10px] uppercase text-slate-500">ONSS employé (13,07 %)</div>
-            <div className="font-mono font-bold text-red-400">{eur.format(payroll.employeeOnss)}</div>
-          </div>
-          <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
-            <div className="text-[10px] uppercase text-slate-500">Précompte professionnel</div>
-            <div className="font-mono font-bold text-red-400">{eur.format(payroll.withholdingTax)}</div>
-          </div>
-          <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-lg p-3">
-            <div className="text-[10px] uppercase text-emerald-400">{t.net}</div>
-            <div className="font-mono font-black text-emerald-300">{eur.format(payroll.netMonthly)}</div>
-          </div>
-          <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
-            <div className="text-[10px] uppercase text-slate-500">ONSS employeur (25 %)</div>
-            <div className="font-mono font-bold text-red-400">{eur.format(payroll.employerOnss)}</div>
-          </div>
-          <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
-            <div className="text-[10px] uppercase text-slate-500">{t.employerCost}</div>
-            <div className="font-mono font-bold text-amber-300">{eur.format(payroll.employerTotalCost)}</div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 text-center">
-          <div className="p-3 rounded-lg border border-slate-800 bg-slate-950">
-            <div className="text-[10px] uppercase text-slate-500 flex items-center justify-center gap-1">
-              <TrendingUp className="h-3.5 w-3.5" /> Net annuel
+      {/* ── Simulator ─────────────────────────────────────────────────────── */}
+      <Card flush>
+        <CardHeader
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-[var(--text-tertiary)]" />
+              Simulateur brut → net
+            </span>
+          }
+          description="Outil de planification — ne remplace pas un secrétariat social agréé"
+          actions={<Badge tone="warning">Indicatif</Badge>}
+        />
+        <CardBody className="space-y-4">
+          {/* Gross input */}
+          <div className="space-y-2">
+            <label className="block text-[length:var(--text-2xs)] font-medium text-[var(--text-secondary)]">
+              {t.gross}
+            </label>
+            <div className="flex items-center gap-3">
+              <Input
+                type="number"
+                value={gross}
+                onChange={(e) => setGross(Math.max(0, parseInt(e.target.value) || 0))}
+                className="w-36 font-mono tnum font-semibold text-[var(--accent-solid)]"
+              />
+              <input
+                type="range"
+                min="1500"
+                max="10000"
+                step="100"
+                value={gross}
+                onChange={(e) => setGross(parseInt(e.target.value))}
+                className="flex-1 cursor-pointer accent-[var(--accent-solid)]"
+              />
             </div>
-            <div className="font-mono font-bold text-slate-100">{eur.format(payroll.netAnnual)}</div>
           </div>
-          <div className="p-3 rounded-lg border border-slate-800 bg-slate-950">
-            <div className="text-[10px] uppercase text-slate-500 flex items-center justify-center gap-1">
-              <Wallet className="h-3.5 w-3.5" /> Coût annuel employeur
-            </div>
-            <div className="font-mono font-bold text-slate-100">{eur.format(payroll.employerAnnualCost)}</div>
-          </div>
-        </div>
 
-        <p className="flex items-start gap-2 text-[11px] text-slate-500">
-          <TrendingDown className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
-          <span>
-            Simulation indicative — ne tient pas compte des réductions (travailleur, groupe cible), du pécule de
-            vacances ni des avantages en nature. Intégrez votre secrétariat social pour les fiches 281.10/281.20.
-          </span>
-        </p>
-      </div>
+          {/* Monthly breakdown */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-center">
+            {[
+              { label: 'Brut mensuel', value: payroll.grossMonthly, tone: 'default' as const },
+              { label: 'ONSS employé (13,07 %)', value: payroll.employeeOnss, tone: 'critical' as const },
+              { label: 'Précompte professionnel', value: payroll.withholdingTax, tone: 'critical' as const },
+              { label: t.net, value: payroll.netMonthly, tone: 'positive' as const },
+              { label: 'ONSS employeur (25 %)', value: payroll.employerOnss, tone: 'critical' as const },
+              { label: t.employerCost, value: payroll.employerTotalCost, tone: 'accent' as const },
+            ].map((cell) => (
+              <div
+                key={cell.label}
+                className={cn(
+                  'p-3 rounded-[var(--radius-md)] border space-y-1',
+                  cell.tone === 'positive'
+                    ? 'bg-[var(--state-positive-bg)] border-[var(--state-positive-border)]'
+                    : 'bg-[var(--bg-sunken)] border-[var(--border-subtle)]',
+                )}
+              >
+                <div
+                  className={cn(
+                    'text-[length:var(--text-2xs)] uppercase tracking-wide',
+                    cell.tone === 'positive'
+                      ? 'text-[var(--state-positive-text)]'
+                      : 'text-[var(--text-tertiary)]',
+                  )}
+                >
+                  {cell.label}
+                </div>
+                <div
+                  className={cn(
+                    'font-mono tnum font-semibold text-[length:var(--text-sm)]',
+                    cell.tone === 'critical'
+                      ? 'text-[var(--state-critical-text)]'
+                      : cell.tone === 'positive'
+                        ? 'text-[var(--state-positive-text)]'
+                        : cell.tone === 'accent'
+                          ? 'text-[var(--accent-solid)]'
+                          : 'text-[var(--text-primary)]',
+                  )}
+                >
+                  {eur.format(cell.value)}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Annual totals */}
+          <div className="grid grid-cols-2 gap-3 text-center">
+            {[
+              { label: 'Net annuel', value: payroll.netAnnual, Icon: TrendingUp },
+              { label: 'Coût annuel employeur', value: payroll.employerAnnualCost, Icon: Wallet },
+            ].map(({ label, value, Icon }) => (
+              <div
+                key={label}
+                className="p-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-sunken)] space-y-1"
+              >
+                <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)] flex items-center justify-center gap-1">
+                  <Icon className="w-3.5 h-3.5" /> {label}
+                </div>
+                <div className="font-mono tnum font-semibold text-[length:var(--text-sm)] text-[var(--text-primary)]">
+                  {eur.format(value)}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="flex items-start gap-2 text-[length:var(--text-2xs)] text-[var(--text-tertiary)] leading-relaxed">
+            <TrendingDown className="w-4 h-4 shrink-0 mt-0.5 text-[var(--accent-solid)]" />
+            <span>
+              Simulation indicative — ne tient pas compte des réductions (travailleur, groupe cible), du pécule de
+              vacances ni des avantages en nature. Intégrez votre secrétariat social pour les fiches 281.10/281.20.
+            </span>
+          </p>
+        </CardBody>
+      </Card>
     </div>
   );
 }

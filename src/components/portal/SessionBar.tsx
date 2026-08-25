@@ -1,6 +1,7 @@
 import { ArrowLeft, BadgeCheck, Building2, Globe, LogOut, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useSession } from '../../state/SessionContext';
 import type { Language } from '../../i18n/translations';
+import { Badge } from '../ui/Badge';
 
 const ROLE_LABELS: Record<string, string> = {
   OWNER: 'Gérant',
@@ -21,84 +22,85 @@ export function SessionBar({ syncState }: { syncState?: 'idle' | 'syncing' | 'sy
 
   const syncIndicator =
     syncState === 'syncing'
-      ? { dot: 'bg-amber-400 animate-pulse', label: 'Synchronisation…', text: 'text-amber-300' }
+      ? { dot: 'bg-[var(--state-warning-solid)] animate-pulse', label: 'Synchronisation…', text: 'text-[var(--state-warning-text)]' }
       : syncState === 'synced'
-        ? { dot: 'bg-emerald-400', label: 'Synchronisé', text: 'text-emerald-300' }
+        ? { dot: 'bg-[var(--state-positive-solid)]', label: 'Synchronisé', text: 'text-[var(--state-positive-text)]' }
         : syncState === 'error'
-          ? { dot: 'bg-red-400', label: 'Erreur de synchro', text: 'text-red-300' }
+          ? { dot: 'bg-[var(--state-critical-solid)]', label: 'Erreur de synchro', text: 'text-[var(--state-critical-text)]' }
           : null;
 
   return (
-    <div className="bg-slate-900 border-b border-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-3 text-xs">
+    <div className="bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-3 text-[length:var(--text-xs)]">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="inline-flex items-center gap-1.5 text-slate-300 font-medium">
-            <BadgeCheck className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+          <span className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] font-medium">
+            <BadgeCheck className="h-3.5 w-3.5 text-[var(--accent-solid)] shrink-0" />
             <span className="truncate">{user?.displayName}</span>
           </span>
-          <span className="px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 font-semibold">
+          <Badge tone="neutral" className="rounded-[var(--radius-full)] px-2 font-semibold">
             {activeRole ? ROLE_LABELS[activeRole] ?? activeRole : '—'}
-          </span>
+          </Badge>
 
           {syncIndicator && (
             <span className="inline-flex items-center gap-1.5">
-              <span className={`h-2 w-2 rounded-full ${syncIndicator.dot}`} />
+              <span className={`h-2 w-2 rounded-[var(--radius-full)] ${syncIndicator.dot}`} />
               <span className={syncIndicator.text}>{syncIndicator.label}</span>
             </span>
           )}
 
           {activeTenant && (
-            <span className="hidden sm:inline-flex items-center gap-1.5 text-slate-400">
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-[var(--text-tertiary)]">
               <Building2 className="h-3.5 w-3.5" />
               <span className="truncate max-w-[220px]">{activeTenant.name}</span>
-              <span className="font-mono text-[10px] text-amber-400">{activeTenant.bceDigits}</span>
+              <span className="font-mono tnum text-[length:var(--text-2xs)] text-[var(--accent-solid)]">{activeTenant.bceDigits}</span>
             </span>
           )}
 
           {forceClientWorkspace && (
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border bg-sky-500/10 text-sky-300 border-sky-500/25">
+            <Badge tone="info" className="rounded-[var(--radius-full)] px-2">
               Inspection cabinet
-            </span>
+            </Badge>
           )}
 
           {mode === 'client' && !forceClientWorkspace && (
-            <span
-              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${
-                canSelfDeclare
-                  ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25'
-                  : 'bg-slate-800 text-slate-400 border-slate-700'
-              }`}
-              title="Droit de déclaration TVA autonome accordé par votre cabinet"
+            <Badge
+              tone={canSelfDeclare ? 'positive' : 'neutral'}
+              className="rounded-[var(--radius-full)] px-2"
             >
-              {canSelfDeclare ? (
-                <ShieldCheck className="h-3 w-3" />
-              ) : (
-                <ShieldOff className="h-3 w-3" />
-              )}
-              {canSelfDeclare ? 'Déclaration TVA autonome' : 'TVA déposée par le cabinet'}
-            </span>
+              <span
+                className="inline-flex items-center gap-1.5"
+                title="Droit de déclaration TVA autonome accordé par votre cabinet"
+              >
+                {canSelfDeclare ? (
+                  <ShieldCheck className="h-3 w-3" />
+                ) : (
+                  <ShieldOff className="h-3 w-3" />
+                )}
+                {canSelfDeclare ? 'Déclaration TVA autonome' : 'TVA déposée par le cabinet'}
+              </span>
+            </Badge>
           )}
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <div className="relative flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700">
-            <Globe className="h-3.5 w-3.5 ml-1.5 text-slate-400" />
+          <div className="relative flex items-center bg-[var(--bg-subtle)] rounded-[var(--radius-md)] p-0.5 border border-[var(--border-default)]">
+            <Globe className="h-3.5 w-3.5 ml-1.5 text-[var(--text-tertiary)]" />
             <select
               value={lang}
               onChange={(e) => setLang(e.target.value as Language)}
-              className="bg-transparent text-xs text-slate-200 font-medium pl-1 pr-2 py-1 outline-none cursor-pointer"
+              className="bg-transparent text-[length:var(--text-xs)] text-[var(--text-primary)] font-medium pl-1 pr-2 py-1 outline-none cursor-pointer"
               aria-label="Langue"
             >
-              <option value="fr" className="bg-slate-800 text-white">FR</option>
-              <option value="nl" className="bg-slate-800 text-white">NL</option>
-              <option value="en" className="bg-slate-800 text-white">EN</option>
+              <option value="fr" className="bg-[var(--bg-surface)] text-[var(--text-primary)]">FR</option>
+              <option value="nl" className="bg-[var(--bg-surface)] text-[var(--text-primary)]">NL</option>
+              <option value="en" className="bg-[var(--bg-surface)] text-[var(--text-primary)]">EN</option>
             </select>
           </div>
 
           {forceClientWorkspace && (
             <button
               onClick={exitClientWorkspace}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sky-300 hover:text-white hover:bg-slate-800 border border-sky-500/30 hover:border-sky-500/60 transition"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[var(--radius-md)] text-[var(--state-info-text)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-[var(--state-info-border)] transition-colors"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Retour au cabinet
@@ -106,7 +108,7 @@ export function SessionBar({ syncState }: { syncState?: 'idle' | 'syncing' | 'sy
           )}
           <button
             onClick={logout}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent hover:border-slate-700 transition"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[var(--radius-md)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-transparent hover:border-[var(--border-default)] transition-colors"
           >
             <LogOut className="h-3.5 w-3.5" />
             Déconnexion

@@ -14,6 +14,11 @@ import { translations } from '../i18n/translations';
 import { exportFiduciaryPackage, downloadFiduciaryPackage } from '../services/fiduciaryBridge';
 import type { FiduciaryFormat } from '../services/fiduciaryBridge';
 import confetti from 'canvas-confetti';
+import { Card, CardHeader, CardBody } from './ui/Card';
+import { Button } from './ui/Button';
+import { Badge } from './ui/Badge';
+import { Input } from './ui/Input';
+import { cn } from './ui/cn';
 
 interface FiduciaryViewProps {
   company: CompanyProfile;
@@ -96,114 +101,105 @@ export const FiduciaryView: React.FC<FiduciaryViewProps> = ({
   };
 
   return (
-    <div className="space-y-6">
-      
+    <div className="space-y-4">
+
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center space-x-2">
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-              Institut des Conseillers Fiscaux et Experts-Comptables (ITAA)
-            </span>
+      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <Badge tone="info">Institut des Conseillers Fiscaux et Experts-Comptables (ITAA)</Badge>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center mt-1">
-            <UserCheck className="w-6 h-6 mr-2 text-amber-400" />
+          <h1 className="text-[length:var(--text-lg)] font-semibold text-[var(--text-primary)] flex items-center gap-2">
+            <UserCheck className="w-5 h-5 text-[var(--accent-solid)]" />
             {t.title}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-[length:var(--text-xs)] text-[var(--text-secondary)]">
             {t.subtitle}
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <div className="px-3.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs flex items-center text-slate-300">
-            <ShieldCheck className="w-4 h-4 mr-2 text-emerald-400" />
-            <span>N° Agrément ITAA : <strong className="text-amber-400 font-mono">{company.fiduciaryItaaNumber}</strong></span>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[var(--radius-md)] bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[length:var(--text-xs)] text-[var(--text-secondary)]">
+            <ShieldCheck className="w-4 h-4 text-[var(--state-positive-text)]" />
+            <span>N° Agrément ITAA : <strong className="text-[var(--accent-solid)] font-mono tnum">{company.fiduciaryItaaNumber}</strong></span>
           </div>
         </div>
       </div>
 
       {/* Fiduciary Profile Card */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="flex items-center space-x-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-800 flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-blue-500/20">
-            FF
-          </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <h2 className="text-lg font-bold text-white">{company.fiduciaryName}</h2>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                <CheckCircle2 className="w-3 h-3 mr-1" /> Connecté en direct
-              </span>
+      <Card>
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 shrink-0 rounded-[var(--radius-lg)] bg-[var(--state-info-bg)] border border-[var(--state-info-border)] flex items-center justify-center text-[var(--state-info-text)] font-semibold text-[length:var(--text-lg)]">
+              FF
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Contact référent : <strong className="text-slate-300">expert@fiduciaire-flagey.be</strong> • Révision trimestrielle TVA & Clôture annuelle
-            </p>
+            <div className="min-w-0 space-y-0.5">
+              <div className="flex items-center gap-2">
+                <h2 className="text-[length:var(--text-sm)] font-semibold text-[var(--text-primary)]">{company.fiduciaryName}</h2>
+                <Badge tone="positive" dot>Connecté en direct</Badge>
+              </div>
+              <p className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                Contact référent : <strong className="font-medium text-[var(--text-secondary)]">expert@fiduciaire-flagey.be</strong> · Révision trimestrielle TVA &amp; Clôture annuelle
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => handleExportSoftware('bob')}>
+              {t.exportBob}
+            </Button>
+            <Button variant="secondary" onClick={() => handleExportSoftware('winbooks')}>
+              {t.exportWinbooks}
+            </Button>
+            <Button variant="primary" onClick={() => handleExportSoftware('horus')}>
+              {t.exportHorus}
+            </Button>
+            <Button variant="secondary" onClick={() => handleExportSoftware('full')}>
+              Bundle complet (tous formats)
+            </Button>
           </div>
         </div>
-
-        <div className="flex flex-wrap gap-2 text-xs">
-          <button 
-            onClick={() => handleExportSoftware('bob')}
-            className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 transition"
-          >
-            {t.exportBob}
-          </button>
-          <button 
-            onClick={() => handleExportSoftware('winbooks')}
-            className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 transition"
-          >
-            {t.exportWinbooks}
-          </button>
-          <button 
-            onClick={() => handleExportSoftware('horus')}
-            className="px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold transition"
-          >
-            {t.exportHorus}
-          </button>
-          <button 
-            onClick={() => handleExportSoftware('full')}
-            className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 transition"
-          >
-            Bundle complet (tous formats)
-          </button>
-        </div>
-      </div>
+      </Card>
 
       {exportSuccess && (
-        <div className="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-xs text-emerald-300 flex items-center space-x-2 animate-in fade-in">
-          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+        <div className="flex items-center gap-2 p-3 rounded-[var(--radius-md)] bg-[var(--state-positive-bg)] border border-[var(--state-positive-border)] text-[length:var(--text-xs)] text-[var(--state-positive-text)]">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{exportSuccess}</span>
         </div>
       )}
 
       {/* Collaboration Chat & Document Exchange */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Chat / Queries */}
-        <div className="lg:col-span-2 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg flex flex-col h-[460px]">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h3 className="text-sm font-bold text-white flex items-center">
-              <MessageSquare className="w-4 h-4 mr-2 text-amber-400" />
-              Fil de discussion direct & Questions Pièces Comptables
-            </h3>
-            <span className="text-[11px] text-emerald-400 font-mono">En ligne</span>
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-          <div className="flex-1 overflow-y-auto space-y-3 py-4 pr-1 text-xs">
+        {/* Chat / Queries */}
+        <Card flush className="lg:col-span-2 flex flex-col h-[460px]">
+          <CardHeader
+            title={
+              <span className="inline-flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-[var(--accent-solid)]" />
+                Fil de discussion direct &amp; Questions Pièces Comptables
+              </span>
+            }
+            actions={<Badge tone="positive" dot>En ligne</Badge>}
+          />
+
+          <div className="flex-1 overflow-y-auto space-y-3 p-4">
             {messages.map((m) => {
               const isClient = m.sender === 'client';
               return (
-                <div key={m.id} className={`flex flex-col ${isClient ? 'items-end' : 'items-start'}`}>
-                  <div className="flex items-center space-x-1.5 mb-1">
-                    <span className="font-semibold text-slate-300">{m.senderName}</span>
-                    <span className="text-[10px] text-slate-500">{m.time}</span>
+                <div key={m.id} className={cn('flex flex-col', isClient ? 'items-end' : 'items-start')}>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-[length:var(--text-2xs)] font-semibold text-[var(--text-secondary)]">{m.senderName}</span>
+                    <span className="text-[length:var(--text-2xs)] text-[var(--text-disabled)]">{m.time}</span>
                   </div>
-                  <div className={`p-3 rounded-2xl max-w-md ${
-                    isClient 
-                      ? 'bg-amber-500 text-slate-950 font-medium rounded-tr-none' 
-                      : 'bg-slate-800 text-slate-200 border border-slate-700/60 rounded-tl-none'
-                  }`}>
+                  <div
+                    className={cn(
+                      'p-3 max-w-md text-[length:var(--text-xs)] leading-relaxed rounded-[var(--radius-lg)]',
+                      isClient
+                        ? 'bg-[var(--accent-solid)] text-[var(--accent-text)] font-medium rounded-tr-none'
+                        : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] border border-[var(--border-subtle)] rounded-tl-none',
+                    )}
+                  >
                     {m.text}
                   </div>
                 </div>
@@ -211,68 +207,62 @@ export const FiduciaryView: React.FC<FiduciaryViewProps> = ({
             })}
           </div>
 
-          <form onSubmit={handleSendMessage} className="flex gap-2 pt-3 border-t border-slate-800">
-            <input
+          <form onSubmit={handleSendMessage} className="flex gap-2 p-4 border-t border-[var(--border-subtle)]">
+            <Input
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Poser une question à votre expert-comptable ITAA..."
-              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+              className="flex-1"
             />
-            <button
-              type="submit"
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-md shadow-amber-500/20 transition flex items-center"
-            >
-              <Send className="w-3.5 h-3.5 mr-1" />
+            <Button type="submit" variant="primary" className="shrink-0">
+              <Send className="w-3.5 h-3.5" />
               Envoyer
-            </button>
+            </Button>
           </form>
-        </div>
+        </Card>
 
         {/* Fiduciary Tools & Verification Checklist */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4 text-xs">
-          <h3 className="text-sm font-bold text-white flex items-center border-b border-slate-800 pb-3">
-            <ShieldCheck className="w-4 h-4 mr-2 text-emerald-400" />
-            Checklist Clôture Trimestrielle Q1
-          </h3>
+        <Card flush>
+          <CardHeader
+            title={
+              <span className="inline-flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[var(--state-positive-text)]" />
+                Checklist Clôture Trimestrielle Q1
+              </span>
+            }
+          />
+          <CardBody className="space-y-4">
+            <div className="space-y-1.5">
+              {[
+                'Toutes les factures de ventes transmises en Peppol UBL',
+                'Dépenses catégorisées selon le PCMN belge',
+                'Extraits CODA réconciliés par OGM Modulo 97',
+                'Calcul prévisionnel grille 71 TVA validé',
+              ].map((item) => (
+                <div
+                  key={item}
+                  className="flex items-center gap-2 p-2.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-sunken)] text-[length:var(--text-xs)] text-[var(--text-secondary)]"
+                >
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-[var(--state-positive-text)]" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
 
-          <div className="space-y-2.5">
-            <div className="flex items-center space-x-2 text-slate-300 p-2 rounded-lg bg-slate-800/40">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Toutes les factures de ventes transmises en Peppol UBL</span>
-            </div>
-            <div className="flex items-center space-x-2 text-slate-300 p-2 rounded-lg bg-slate-800/40">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Dépenses catégorisées selon le PCMN belge</span>
-            </div>
-            <div className="flex items-center space-x-2 text-slate-300 p-2 rounded-lg bg-slate-800/40">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Extraits CODA réconciliés par OGM Modulo 97</span>
-            </div>
-            <div className="flex items-center space-x-2 text-slate-300 p-2 rounded-lg bg-slate-800/40">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Calcul prévisionnel grille 71 TVA validé</span>
-            </div>
-          </div>
+            <div className="pt-3 border-t border-[var(--border-subtle)] space-y-2">
+              <Button variant="secondary" onClick={() => handleExportSoftware('exact')} className="w-full">
+                <Download className="w-3.5 h-3.5 text-[var(--accent-solid)]" />
+                Exporter Exact Online (CSV/XML)
+              </Button>
 
-          <div className="pt-3 border-t border-slate-800">
-            <button
-              onClick={() => handleExportSoftware('exact')}
-              className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center justify-center space-x-1.5 transition"
-            >
-              <Download className="w-3.5 h-3.5 text-amber-400" />
-              <span>Exporter Exact Online (CSV/XML)</span>
-            </button>
-
-            <button
-              onClick={() => handleExportSoftware('full')}
-              className="w-full mt-2 py-2 px-3 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/40 text-emerald-300 border border-emerald-500/40 text-xs font-semibold flex items-center justify-center space-x-1.5 transition"
-            >
-              <Scale className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Dossier Fiduciaire Complet (Vérifié Partie Double)</span>
-            </button>
-          </div>
-        </div>
+              <Button variant="secondary" onClick={() => handleExportSoftware('full')} className="w-full">
+                <Scale className="w-3.5 h-3.5 text-[var(--state-positive-text)]" />
+                Dossier Fiduciaire Complet (Vérifié Partie Double)
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
 
       </div>
 

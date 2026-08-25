@@ -5,6 +5,10 @@ import { useSession } from '../state/SessionContext';
 import type { Language } from '../i18n/translations';
 import { translations } from '../i18n/translations';
 import type { AuditLog, AuditChainVerification } from '../server/types/db';
+import { Card } from './ui/Card';
+import { Badge } from './ui/Badge';
+import { DataTable, Th, Td, Tr } from './ui/DataTable';
+import { cn } from './ui/cn';
 
 const ACTION_LABELS: Record<string, string> = {
   CREATE: 'Création',
@@ -59,40 +63,52 @@ export function AuditTrailView({ lang }: { lang: Language }) {
   }, [load]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2 text-amber-400 text-xs font-bold tracking-wider uppercase mb-1">
-          <ShieldCheck className="h-4 w-4" /> Sécurité & traçabilité
+    <div className="space-y-4">
+      {/* ── Hero header ─────────────────────────────────────────────────── */}
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+          <Badge tone="accent" dot>Sécurité &amp; traçabilité</Badge>
         </div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{t.title}</h1>
-        <p className="text-xs sm:text-sm text-slate-400 mt-1">
+        <h1 className="text-[length:var(--text-lg)] font-semibold text-[var(--text-primary)] tracking-tight flex items-center gap-2">
+          <ShieldCheck className="w-5 h-5 text-[var(--text-tertiary)]" />
+          {t.title}
+        </h1>
+        <p className="text-[length:var(--text-xs)] text-[var(--text-secondary)]">
           {t.subtitle} — chaque écriture financière est horodatée et attribuée.
         </p>
       </div>
 
-      {/* Chain integrity banner */}
+      {/* ── Chain integrity banner ──────────────────────────────────────── */}
       {verification && (
         <div
-          className={`rounded-2xl border p-4 flex items-center gap-3 ${
+          className={cn(
+            'rounded-[var(--radius-lg)] border p-4 flex items-center gap-3',
             verification.valid
-              ? 'border-emerald-500/30 bg-emerald-950/20'
-              : 'border-red-500/30 bg-red-950/20'
-          }`}
+              ? 'bg-[var(--state-positive-bg)] border-[var(--state-positive-border)]'
+              : 'bg-[var(--state-critical-bg)] border-[var(--state-critical-border)]',
+          )}
         >
           {verification.valid ? (
-            <ShieldCheck className="h-6 w-6 text-emerald-400 shrink-0" />
+            <ShieldCheck className="h-6 w-6 text-[var(--state-positive-text)] shrink-0" />
           ) : (
-            <ShieldAlert className="h-6 w-6 text-red-400 shrink-0" />
+            <ShieldAlert className="h-6 w-6 text-[var(--state-critical-text)] shrink-0" />
           )}
-          <div>
-            <div className={`text-sm font-bold ${verification.valid ? 'text-emerald-300' : 'text-red-300'}`}>
+          <div className="min-w-0 space-y-0.5">
+            <div
+              className={cn(
+                'text-[length:var(--text-sm)] font-semibold',
+                verification.valid
+                  ? 'text-[var(--state-positive-text)]'
+                  : 'text-[var(--state-critical-text)]',
+              )}
+            >
               {verification.valid ? t.chainValid : t.chainBroken}
             </div>
-            <div className="text-xs text-slate-400">
+            <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
               {verification.entriesChecked} entrée(s) vérifiée(s) · algorithme SHA-256 · {activeTenant?.name ?? 'tenant'}
             </div>
             {!verification.valid && verification.brokenAt.length > 0 && (
-              <div className="text-xs text-red-300 mt-1">
+              <div className="text-[length:var(--text-2xs)] text-[var(--state-critical-text)]">
                 Rupture détectée à la séquence {verification.brokenAt[0].sequence}.
               </div>
             )}
@@ -101,63 +117,74 @@ export function AuditTrailView({ lang }: { lang: Language }) {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-slate-500">
+        <div className="flex items-center justify-center py-16 text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
           <Loader2 className="h-5 w-5 animate-spin mr-2" /> Chargement de la piste d'audit…
         </div>
       ) : (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-slate-850 text-slate-400 font-semibold border-b border-slate-800 uppercase text-[10px] tracking-wider">
+        <Card flush>
+          <DataTable>
+            <thead>
+              <tr>
+                <Th className="pl-5">#</Th>
+                <Th>Horodatage</Th>
+                <Th>Action</Th>
+                <Th>Entité</Th>
+                <Th>Acteur</Th>
+                <Th align="right" className="pr-5">Champs modifiés</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.length === 0 && (
                 <tr>
-                  <th className="p-3 pl-5">#</th>
-                  <th className="p-3">Horodatage</th>
-                  <th className="p-3">Action</th>
-                  <th className="p-3">Entité</th>
-                  <th className="p-3">Acteur</th>
-                  <th className="p-3 pr-5 text-right">Champs modifiés</th>
+                  <td
+                    colSpan={6}
+                    className="p-6 text-center text-[length:var(--text-xs)] text-[var(--text-tertiary)] border-b border-[var(--border-subtle)]"
+                  >
+                    Aucune entrée d'audit pour ce tenant.
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {entries.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="p-6 text-center text-slate-500">
-                      Aucune entrée d'audit pour ce tenant.
-                    </td>
-                  </tr>
-                )}
-                {entries.map((entry) => (
-                  <tr key={entry.id} className="hover:bg-slate-800/40 transition">
-                    <td className="p-3 pl-5 font-mono text-slate-500">{entry.sequence}</td>
-                    <td className="p-3 font-mono text-[10px] text-slate-400">
-                      {entry.timestamp.replace('T', ' ').slice(0, 19)}
-                    </td>
-                    <td className="p-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-200 border border-slate-700">
-                        {ACTION_LABELS[entry.action] ?? entry.action}
+              )}
+              {entries.map((entry) => (
+                <Tr key={entry.id} interactive>
+                  <Td mono className="pl-5 text-[var(--text-tertiary)]">
+                    {entry.sequence}
+                  </Td>
+                  <Td mono className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                    {entry.timestamp.replace('T', ' ').slice(0, 19)}
+                  </Td>
+                  <Td>
+                    <Badge tone="neutral">{ACTION_LABELS[entry.action] ?? entry.action}</Badge>
+                  </Td>
+                  <Td>
+                    <div className="font-semibold text-[var(--text-primary)]">{entry.entity}</div>
+                    {entry.entityLabel && (
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                        {entry.entityLabel}
+                      </div>
+                    )}
+                  </Td>
+                  <Td>
+                    <div className="text-[var(--text-secondary)]">{entry.actorEmail ?? entry.actorUserId}</div>
+                    {entry.actorRole && (
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                        {entry.actorRole}
+                      </div>
+                    )}
+                  </Td>
+                  <Td align="right" className="pr-5">
+                    {entry.diff.length > 0 ? (
+                      <span className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                        {entry.diff.length} champ(s)
                       </span>
-                    </td>
-                    <td className="p-3">
-                      <div className="font-semibold text-slate-200">{entry.entity}</div>
-                      {entry.entityLabel && <div className="text-[10px] text-slate-500">{entry.entityLabel}</div>}
-                    </td>
-                    <td className="p-3">
-                      <div className="text-slate-300">{entry.actorEmail ?? entry.actorUserId}</div>
-                      {entry.actorRole && <div className="text-[10px] text-slate-500">{entry.actorRole}</div>}
-                    </td>
-                    <td className="p-3 pr-5 text-right">
-                      {entry.diff.length > 0 ? (
-                        <span className="text-[10px] text-slate-400">{entry.diff.length} champ(s)</span>
-                      ) : (
-                        <span className="text-[10px] text-slate-600">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                    ) : (
+                      <span className="text-[length:var(--text-2xs)] text-[var(--text-disabled)]">—</span>
+                    )}
+                  </Td>
+                </Tr>
+              ))}
+            </tbody>
+          </DataTable>
+        </Card>
       )}
     </div>
   );

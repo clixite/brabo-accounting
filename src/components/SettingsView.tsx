@@ -12,6 +12,14 @@ import type { CompanyProfile } from '../types/accounting';
 import type { Language } from '../i18n/translations';
 import { BELGIAN_PCMN_ACCOUNTS, validateBCE } from '../utils/belgianAccounting';
 import confetti from 'canvas-confetti';
+import { Card, CardHeader, CardBody } from './ui/Card';
+import { Button } from './ui/Button';
+import { Badge } from './ui/Badge';
+import { Input } from './ui/Input';
+import { Select } from './ui/Select';
+import { Field } from './ui/Field';
+import { DataTable, Th, Td, Tr } from './ui/DataTable';
+import { cn } from './ui/cn';
 
 interface SettingsViewProps {
   company: CompanyProfile;
@@ -43,35 +51,49 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   );
 
   return (
-    <div className="space-y-6">
-      
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center">
-            <Settings className="w-6 h-6 mr-2 text-amber-400" />
+    <div className="space-y-4">
+
+      {/* ── Hero header ───────────────────────────────────────────────────── */}
+      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+            <Badge tone="accent" dot>Configuration</Badge>
+            <span>Entité juridique belge & PCMN</span>
+          </div>
+          <h1 className="text-[length:var(--text-lg)] font-semibold text-[var(--text-primary)] flex items-center gap-2">
+            <Settings className="w-5 h-5 text-[var(--text-tertiary)]" />
             Paramètres & Plan Comptable PCMN
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-[length:var(--text-xs)] text-[var(--text-secondary)]">
             Configuration de votre entité juridique belge, point d'accès Peppol et plan de comptes normalisé.
           </p>
         </div>
 
         {/* Tab switch */}
-        <div className="flex bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs">
+        <div className="flex items-center gap-1 p-1 rounded-[var(--radius-md)] bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
           <button
+            type="button"
             onClick={() => setActiveTab('profile')}
-            className={`px-3.5 py-1.5 rounded-lg font-semibold transition ${
-              activeTab === 'profile' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
-            }`}
+            className={cn(
+              'h-[var(--control-height-sm)] px-3 rounded-[var(--radius-sm)]',
+              'text-[length:var(--text-xs)] font-semibold transition-colors',
+              activeTab === 'profile'
+                ? 'bg-[var(--accent-solid)] text-[var(--accent-text)]'
+                : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
+            )}
           >
             Entité Belge & Peppol
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('pcmn')}
-            className={`px-3.5 py-1.5 rounded-lg font-semibold transition ${
-              activeTab === 'pcmn' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
-            }`}
+            className={cn(
+              'h-[var(--control-height-sm)] px-3 rounded-[var(--radius-sm)]',
+              'text-[length:var(--text-xs)] font-semibold transition-colors',
+              activeTab === 'pcmn'
+                ? 'bg-[var(--accent-solid)] text-[var(--accent-text)]'
+                : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
+            )}
           >
             Plan Comptable PCMN
           </button>
@@ -79,299 +101,295 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       </div>
 
       {savedNotice && (
-        <div className="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-xs text-emerald-300 flex items-center space-x-2 animate-in fade-in">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+        <div className="flex items-center gap-2 p-3 rounded-[var(--radius-md)] bg-[var(--state-positive-bg)] border border-[var(--state-positive-border)] text-[length:var(--text-xs)] text-[var(--state-positive-text)] animate-in fade-in">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>Paramètres de l'entreprise belge enregistrés avec succès !</span>
         </div>
       )}
 
       {activeTab === 'profile' && (
-        <form onSubmit={handleSubmit} className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 text-xs text-slate-200">
-          
-          {/* Section 1: Identification & BCE */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold text-amber-300 uppercase tracking-wider flex items-center border-b border-slate-800 pb-2">
-              <Building2 className="w-4 h-4 mr-1.5" />
-              1. Identification Légale (BCE / KBO)
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-slate-400 mb-1">Raison Sociale / Nom</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-semibold focus:border-amber-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1">Forme Juridique</label>
-                <select
-                  value={formData.legalForm}
-                  onChange={(e) => setFormData({ ...formData, legalForm: e.target.value as any })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
-                >
-                  <option value="SRL">SRL (Société à Responsabilité Limitée)</option>
-                  <option value="BV">BV (Besloten Vennootschap)</option>
-                  <option value="SA">SA (Société Anonyme)</option>
-                  <option value="NV">NV (Naamloze Vennootschap)</option>
-                  <option value="Indépendant">Indépendant (Personne physique)</option>
-                  <option value="Eenmanszaak">Eenmanszaak</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1">Numéro BCE / TVA (Mod 97)</label>
-                <input
-                  type="text"
-                  value={formData.bceNumber}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const cleaned = val.replace(/[^0-9]/g, '');
-                    setFormData({ 
-                      ...formData, 
-                      bceNumber: val,
-                      vatNumber: 'BE' + cleaned,
-                      peppolEndpointId: `0208:${cleaned}`
-                    });
-                  }}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 font-mono text-white focus:border-amber-500 focus:outline-none"
-                />
-                {bceVal.isValid ? (
-                  <span className="text-[10px] text-emerald-400 mt-0.5 block">✓ N° BCE valide</span>
+        <form onSubmit={handleSubmit}>
+          <Card flush className="shadow-[var(--shadow)]">
+            <CardHeader
+              title={
+                <span className="inline-flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-[var(--text-tertiary)]" />
+                  Entité Belge & Peppol
+                </span>
+              }
+              description="Identification légale, coordonnées bancaires et fiduciaire référente"
+              actions={
+                bceVal.isValid ? (
+                  <Badge tone="positive" dot>BCE valide</Badge>
                 ) : (
-                  <span className="text-[10px] text-amber-400 mt-0.5 block">{bceVal.error}</span>
-                )}
+                  <Badge tone="warning" dot>BCE à vérifier</Badge>
+                )
+              }
+            />
+            <CardBody className="space-y-6">
+
+              {/* Section 1: Identification & BCE */}
+              <div className="space-y-4">
+                <h3 className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide text-[var(--accent-solid)] flex items-center gap-1.5 border-b border-[var(--border-subtle)] pb-2">
+                  <Building2 className="w-4 h-4" />
+                  1. Identification Légale (BCE / KBO)
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <Field label="Raison Sociale / Nom">
+                    <Input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="font-semibold"
+                    />
+                  </Field>
+
+                  <Field label="Forme Juridique">
+                    <Select
+                      value={formData.legalForm}
+                      onChange={(e) => setFormData({ ...formData, legalForm: e.target.value as any })}
+                    >
+                      <option value="SRL">SRL (Société à Responsabilité Limitée)</option>
+                      <option value="BV">BV (Besloten Vennootschap)</option>
+                      <option value="SA">SA (Société Anonyme)</option>
+                      <option value="NV">NV (Naamloze Vennootschap)</option>
+                      <option value="Indépendant">Indépendant (Personne physique)</option>
+                      <option value="Eenmanszaak">Eenmanszaak</option>
+                    </Select>
+                  </Field>
+
+                  <Field
+                    label="Numéro BCE / TVA (Mod 97)"
+                    hint={
+                      bceVal.isValid ? (
+                        <span className="text-[var(--state-positive-text)]">✓ N° BCE valide</span>
+                      ) : (
+                        <span className="text-[var(--accent-solid)]">{bceVal.error}</span>
+                      )
+                    }
+                  >
+                    <Input
+                      type="text"
+                      value={formData.bceNumber}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const cleaned = val.replace(/[^0-9]/g, '');
+                        setFormData({ 
+                          ...formData, 
+                          bceNumber: val,
+                          vatNumber: 'BE' + cleaned,
+                          peppolEndpointId: `0208:${cleaned}`
+                        });
+                      }}
+                      className="font-mono tnum"
+                    />
+                  </Field>
+
+                  <Field label="RPM / RPR (Tribunal de l'Entreprise)">
+                    <Input
+                      type="text"
+                      value={formData.rpmCity}
+                      onChange={(e) => setFormData({ ...formData, rpmCity: e.target.value })}
+                    />
+                  </Field>
+
+                  <Field label="Code NACE-BEL">
+                    <Input
+                      type="text"
+                      value={formData.naceBelCode}
+                      onChange={(e) => setFormData({ ...formData, naceBelCode: e.target.value })}
+                    />
+                  </Field>
+
+                  <Field label="Régime de Déclaration TVA">
+                    <Select
+                      value={formData.vatRegime}
+                      onChange={(e) => setFormData({ ...formData, vatRegime: e.target.value as any })}
+                    >
+                      <option value="quarterly">Trimestriel (Standard PME / Indépendant)</option>
+                      <option value="monthly">Mensuel (CA &gt; 2.500.000 € ou sur option)</option>
+                      <option value="franchise_art56bis">Régime de la Franchise (Art. 56bis &lt; 25k€)</option>
+                    </Select>
+                  </Field>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-slate-400 mb-1">RPM / RPR (Tribunal de l'Entreprise)</label>
-                <input
-                  type="text"
-                  value={formData.rpmCity}
-                  onChange={(e) => setFormData({ ...formData, rpmCity: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
-                />
+              {/* Section 2: Address & Banking */}
+              <div className="space-y-4">
+                <h3 className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide text-[var(--accent-solid)] flex items-center gap-1.5 border-b border-[var(--border-subtle)] pb-2">
+                  <Landmark className="w-4 h-4" />
+                  2. Adresse & Coordonnées Bancaires
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <Field label="Rue & Numéro">
+                    <Input
+                      type="text"
+                      value={`${formData.street} ${formData.number}`}
+                      onChange={(e) => {
+                        const parts = e.target.value.split(' ');
+                        setFormData({ ...formData, street: parts.slice(0, -1).join(' ') || parts[0], number: parts[parts.length - 1] || '' });
+                      }}
+                    />
+                  </Field>
+
+                  <Field label="Code Postal & Ville">
+                    <Input
+                      type="text"
+                      value={`${formData.postalCode} ${formData.city}`}
+                      onChange={(e) => {
+                        const parts = e.target.value.split(' ');
+                        setFormData({ ...formData, postalCode: parts[0] || '', city: parts.slice(1).join(' ') || '' });
+                      }}
+                    />
+                  </Field>
+
+                  <Field label="IBAN Professionnel (Belgique)">
+                    <Input
+                      type="text"
+                      value={formData.iban}
+                      onChange={(e) => setFormData({ ...formData, iban: e.target.value })}
+                      className="font-mono tnum"
+                    />
+                  </Field>
+
+                  <Field label="BIC & Banque">
+                    <Input
+                      type="text"
+                      value={`${formData.bic} - ${formData.bankName}`}
+                      onChange={(e) => {
+                        const parts = e.target.value.split('-');
+                        setFormData({ ...formData, bic: parts[0]?.trim() || '', bankName: parts[1]?.trim() || '' });
+                      }}
+                    />
+                  </Field>
+
+                  <Field label="Email Entreprise">
+                    <Input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    />
+                  </Field>
+
+                  <Field label="Identifiant Point d'Accès Peppol">
+                    <Input
+                      type="text"
+                      value={formData.peppolEndpointId}
+                      onChange={(e) => setFormData({ ...formData, peppolEndpointId: e.target.value })}
+                      className="font-mono tnum text-[var(--accent-solid)]"
+                    />
+                  </Field>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-slate-400 mb-1">Code NACE-BEL</label>
-                <input
-                  type="text"
-                  value={formData.naceBelCode}
-                  onChange={(e) => setFormData({ ...formData, naceBelCode: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
-                />
+              {/* Section 3: Fiduciary Link */}
+              <div className="space-y-4">
+                <h3 className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide text-[var(--accent-solid)] flex items-center gap-1.5 border-b border-[var(--border-subtle)] pb-2">
+                  <ShieldCheck className="w-4 h-4" />
+                  3. Fiduciaire & Expert-Comptable Référent (ITAA)
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <Field label="Cabinet / Fiduciaire">
+                    <Input
+                      type="text"
+                      value={formData.fiduciaryName}
+                      onChange={(e) => setFormData({ ...formData, fiduciaryName: e.target.value })}
+                    />
+                  </Field>
+
+                  <Field label="N° d'Agrément ITAA">
+                    <Input
+                      type="text"
+                      value={formData.fiduciaryItaaNumber}
+                      onChange={(e) => setFormData({ ...formData, fiduciaryItaaNumber: e.target.value })}
+                      className="font-mono tnum"
+                    />
+                  </Field>
+
+                  <Field label="Email de l'Expert-Comptable">
+                    <Input
+                      type="email"
+                      value={formData.fiduciaryEmail}
+                      onChange={(e) => setFormData({ ...formData, fiduciaryEmail: e.target.value })}
+                    />
+                  </Field>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-slate-400 mb-1">Régime de Déclaration TVA</label>
-                <select
-                  value={formData.vatRegime}
-                  onChange={(e) => setFormData({ ...formData, vatRegime: e.target.value as any })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
-                >
-                  <option value="quarterly">Trimestriel (Standard PME / Indépendant)</option>
-                  <option value="monthly">Mensuel (CA &gt; 2.500.000 € ou sur option)</option>
-                  <option value="franchise_art56bis">Régime de la Franchise (Art. 56bis &lt; 25k€)</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: Address & Banking */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold text-amber-300 uppercase tracking-wider flex items-center border-b border-slate-800 pb-2">
-              <Landmark className="w-4 h-4 mr-1.5" />
-              2. Adresse & Coordonnées Bancaires
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-slate-400 mb-1">Rue & Numéro</label>
-                <input
-                  type="text"
-                  value={`${formData.street} ${formData.number}`}
-                  onChange={(e) => {
-                    const parts = e.target.value.split(' ');
-                    setFormData({ ...formData, street: parts.slice(0, -1).join(' ') || parts[0], number: parts[parts.length - 1] || '' });
-                  }}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
-                />
+              <div className="flex justify-end pt-4 border-t border-[var(--border-subtle)]">
+                <Button type="submit" variant="primary">
+                  <Save className="w-4 h-4" />
+                  Enregistrer les modifications
+                </Button>
               </div>
 
-              <div>
-                <label className="block text-slate-400 mb-1">Code Postal & Ville</label>
-                <input
-                  type="text"
-                  value={`${formData.postalCode} ${formData.city}`}
-                  onChange={(e) => {
-                    const parts = e.target.value.split(' ');
-                    setFormData({ ...formData, postalCode: parts[0] || '', city: parts.slice(1).join(' ') || '' });
-                  }}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1">IBAN Professionnel (Belgique)</label>
-                <input
-                  type="text"
-                  value={formData.iban}
-                  onChange={(e) => setFormData({ ...formData, iban: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 font-mono text-white focus:border-amber-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1">BIC & Banque</label>
-                <input
-                  type="text"
-                  value={`${formData.bic} - ${formData.bankName}`}
-                  onChange={(e) => {
-                    const parts = e.target.value.split('-');
-                    setFormData({ ...formData, bic: parts[0]?.trim() || '', bankName: parts[1]?.trim() || '' });
-                  }}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1">Email Entreprise</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1">Identifiant Point d'Accès Peppol</label>
-                <input
-                  type="text"
-                  value={formData.peppolEndpointId}
-                  onChange={(e) => setFormData({ ...formData, peppolEndpointId: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 font-mono text-amber-300 focus:border-amber-500 focus:outline-none"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 3: Fiduciary Link */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold text-amber-300 uppercase tracking-wider flex items-center border-b border-slate-800 pb-2">
-              <ShieldCheck className="w-4 h-4 mr-1.5" />
-              3. Fiduciaire & Expert-Comptable Référent (ITAA)
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-slate-400 mb-1">Cabinet / Fiduciaire</label>
-                <input
-                  type="text"
-                  value={formData.fiduciaryName}
-                  onChange={(e) => setFormData({ ...formData, fiduciaryName: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1">N° d'Agrément ITAA</label>
-                <input
-                  type="text"
-                  value={formData.fiduciaryItaaNumber}
-                  onChange={(e) => setFormData({ ...formData, fiduciaryItaaNumber: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 font-mono text-white focus:border-amber-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1">Email de l'Expert-Comptable</label>
-                <input
-                  type="email"
-                  value={formData.fiduciaryEmail}
-                  onChange={(e) => setFormData({ ...formData, fiduciaryEmail: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end pt-4 border-t border-slate-800">
-            <button
-              type="submit"
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition flex items-center"
-            >
-              <Save className="w-4 h-4 mr-1.5 stroke-[2.5]" />
-              Enregistrer les modifications
-            </button>
-          </div>
-
+            </CardBody>
+          </Card>
         </form>
       )}
 
       {/* TAB 2: PCMN CHART OF ACCOUNTS */}
       {activeTab === 'pcmn' && (
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4 text-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800 pb-4">
-            <div>
-              <h3 className="text-base font-bold text-white flex items-center">
-                <BookOpen className="w-5 h-5 mr-2 text-amber-400" />
+        <Card flush className="shadow-[var(--shadow)]">
+          <CardHeader
+            title={
+              <span className="inline-flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-[var(--text-tertiary)]" />
                 Plan Comptable Minimum Normalisé Belge (PCMN)
-              </h3>
-              <p className="text-slate-400 mt-1">
-                Comptes standardisés à 6 chiffres utilisés pour la catégorisation automatique des ventes, achats et déductions fiscales.
-              </p>
-            </div>
-
-            <div className="w-full sm:w-64">
-              <input
-                type="text"
-                value={pcmnSearch}
-                onChange={(e) => setPcmnSearch(e.target.value)}
-                placeholder="Filtrer un compte ou libellé..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
-              />
-            </div>
-          </div>
-
-          <div className="border border-slate-800 rounded-xl overflow-hidden">
-            <table className="w-full text-left text-slate-300">
-              <thead className="bg-slate-850 text-slate-400 font-semibold border-b border-slate-800 uppercase text-[10px] tracking-wider">
-                <tr>
-                  <th className="p-3 pl-4 w-28">N° Compte</th>
-                  <th className="p-3">Intitulé officiel PCMN</th>
-                  <th className="p-3 w-32">Catégorie</th>
-                  <th className="p-3 w-24 text-center">Taux TVA</th>
-                  <th className="p-3 pr-4 w-28 text-center">Déductibilité</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {filteredPcmn.map((acc) => (
-                  <tr key={acc.code} className="hover:bg-slate-800/40 transition">
-                    <td className="p-3 pl-4 font-mono font-bold text-amber-300">{acc.code}</td>
-                    <td className="p-3 font-medium text-white">{acc.label}</td>
-                    <td className="p-3 text-slate-400">{acc.category}</td>
-                    <td className="p-3 text-center font-mono">{acc.vat}%</td>
-                    <td className="p-3 pr-4 text-center">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${
-                        acc.deduct === 100 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                        acc.deduct === 75 ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
-                        acc.deduct === 50 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
-                        'bg-slate-800 text-slate-400'
-                      }`}>
-                        {acc.deduct !== undefined ? `${acc.deduct}%` : 'N/A'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </span>
+            }
+            description="Comptes standardisés à 6 chiffres utilisés pour la catégorisation automatique des ventes, achats et déductions fiscales."
+            actions={
+              <div className="w-full sm:w-64">
+                <Input
+                  type="text"
+                  value={pcmnSearch}
+                  onChange={(e) => setPcmnSearch(e.target.value)}
+                  placeholder="Filtrer un compte ou libellé..."
+                />
+              </div>
+            }
+          />
+          <DataTable stickyHeader>
+            <thead>
+              <tr>
+                <Th className="pl-4 w-28">N° Compte</Th>
+                <Th>Intitulé officiel PCMN</Th>
+                <Th className="w-32">Catégorie</Th>
+                <Th align="center" className="w-24">Taux TVA</Th>
+                <Th align="center" className="pr-4 w-28">Déductibilité</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredPcmn.map((acc) => (
+                <Tr key={acc.code} interactive>
+                  <Td mono className="pl-4 font-semibold text-[var(--accent-solid)]">{acc.code}</Td>
+                  <Td className="font-medium text-[var(--text-primary)]">{acc.label}</Td>
+                  <Td className="text-[var(--text-tertiary)]">{acc.category}</Td>
+                  <Td align="center" mono>{acc.vat}%</Td>
+                  <Td align="center" className="pr-4">
+                    <Badge
+                      tone={
+                        acc.deduct === 100
+                          ? 'positive'
+                          : acc.deduct === 75
+                            ? 'info'
+                            : acc.deduct === 50
+                              ? 'warning'
+                              : 'neutral'
+                      }
+                    >
+                      {acc.deduct !== undefined ? `${acc.deduct}%` : 'N/A'}
+                    </Badge>
+                  </Td>
+                </Tr>
+              ))}
+            </tbody>
+          </DataTable>
+        </Card>
       )}
 
     </div>

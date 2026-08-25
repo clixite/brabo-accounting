@@ -23,6 +23,9 @@ import { CabinetDeclarationPanel } from './CabinetDeclarationPanel';
 import { tenantToCompanyProfile } from '../../services/tenantWorkspace';
 import { consolidateStatements } from '../../services/reporting';
 import type { ClientFinancialProfile } from '../../services/fiscalRecommender';
+import { Card, CardHeader, CardBody } from '../ui/Card';
+import { Badge } from '../ui/Badge';
+import { Button } from '../ui/Button';
 
 interface ClientKpi {
   tenantId: string;
@@ -197,18 +200,20 @@ export function FirmPortalView() {
   const selectedTenant = tenants.find((t) => t.id === selected);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex flex-col">
       <SessionBar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <div className="flex items-center gap-2 text-amber-400 text-xs font-bold tracking-wider uppercase mb-1">
-              <Landmark className="h-4 w-4" /> Espace Cabinet
-            </div>
-            <h1 className="text-2xl font-extrabold tracking-tight">Pilotage des dossiers clients</h1>
-            <p className="text-sm text-slate-400 mt-1">
+          <div className="space-y-1">
+            <Badge tone="accent" uppercase dot>
+              <Landmark className="h-3.5 w-3.5" /> Espace Cabinet
+            </Badge>
+            <h1 className="text-[length:var(--text-2xl)] font-extrabold tracking-tight text-[var(--text-primary)]">
+              Pilotage des dossiers clients
+            </h1>
+            <p className="text-[length:var(--text-sm)] text-[var(--text-tertiary)]">
               {user?.displayName} · Expert-comptable certifié ITAA · {totals.clients} dossier(s) actif(s)
             </p>
           </div>
@@ -217,68 +222,74 @@ export function FirmPortalView() {
         {/* KPI cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
-            { label: 'Clients actifs', value: String(totals.clients), icon: Building2, tone: 'text-slate-200' },
-            { label: 'Chiffre d\'affaires', value: eur.format(totals.turnover), icon: TrendingUp, tone: 'text-amber-300' },
-            { label: 'TVA nette (collectée − déductible)', value: eur.format(totals.vatNet), icon: CircleDollarSign, tone: 'text-emerald-300' },
-            { label: 'Impayés', value: eur.format(totals.overdue), icon: Receipt, tone: 'text-red-400' },
+            { label: 'Clients actifs', value: String(totals.clients), icon: Building2, tone: 'text-[var(--text-primary)]' },
+            { label: 'Chiffre d\'affaires', value: eur.format(totals.turnover), icon: TrendingUp, tone: 'text-[var(--accent-solid)]' },
+            { label: 'TVA nette (collectée − déductible)', value: eur.format(totals.vatNet), icon: CircleDollarSign, tone: 'text-[var(--state-positive-text)]' },
+            { label: 'Impayés', value: eur.format(totals.overdue), icon: Receipt, tone: 'text-[var(--state-critical-text)]' },
           ].map((c) => (
-            <div key={c.label} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-              <div className="flex items-center gap-2 text-slate-400 text-[11px] uppercase tracking-wide mb-2">
+            <Card key={c.label}>
+              <div className="flex items-center gap-2 text-[var(--text-tertiary)] text-[length:var(--text-2xs)] uppercase tracking-wide mb-2">
                 <c.icon className={`h-4 w-4 ${c.tone}`} /> {c.label}
               </div>
-              <div className={`text-xl font-extrabold ${c.tone}`}>{c.value}</div>
-            </div>
+              <div className={`text-[length:var(--text-xl)] font-extrabold ${c.tone}`}>{c.value}</div>
+            </Card>
           ))}
         </div>
 
         {/* Rapports consolidés (P&L multi-clients) */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 mb-8">
-          <div className="flex items-center gap-2 text-xs font-bold text-amber-300 uppercase tracking-wide mb-4">
-            <TrendingUp className="h-4 w-4" /> Rapports consolidés (P&L multi-clients)
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
-            <div>
-              <div className="text-[10px] uppercase text-slate-500">CA HTVA</div>
-              <div className="font-mono font-bold text-slate-100">{eur.format(consolidated.totalRevenueExclVat)}</div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase text-slate-500">Charges HTVA</div>
-              <div className="font-mono font-bold text-slate-300">{eur.format(consolidated.totalExpensesExclVat)}</div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase text-slate-500">Résultat brut</div>
-              <div className={`font-mono font-bold ${consolidated.totalGrossResult >= 0 ? 'text-emerald-300' : 'text-red-400'}`}>
-                {eur.format(consolidated.totalGrossResult)}
+        <Card flush className="mb-8">
+          <CardHeader
+            title={
+              <span className="inline-flex items-center gap-2 text-[var(--accent-solid)] uppercase tracking-wide text-[length:var(--text-xs)]">
+                <TrendingUp className="h-4 w-4" /> Rapports consolidés (P&L multi-clients)
+              </span>
+            }
+          />
+          <CardBody>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
+              <div>
+                <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">CA HTVA</div>
+                <div className="font-mono tnum font-bold text-[var(--text-primary)]">{eur.format(consolidated.totalRevenueExclVat)}</div>
+              </div>
+              <div>
+                <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">Charges HTVA</div>
+                <div className="font-mono tnum font-bold text-[var(--text-secondary)]">{eur.format(consolidated.totalExpensesExclVat)}</div>
+              </div>
+              <div>
+                <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">Résultat brut</div>
+                <div className={`font-mono tnum font-bold ${consolidated.totalGrossResult >= 0 ? 'text-[var(--state-positive-text)]' : 'text-[var(--state-critical-text)]'}`}>
+                  {eur.format(consolidated.totalGrossResult)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">TVA nette</div>
+                <div className="font-mono tnum font-bold text-[var(--state-info-text)]">{eur.format(consolidated.totalVatNet)}</div>
+              </div>
+              <div>
+                <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">Impayés</div>
+                <div className="font-mono tnum font-bold text-[var(--state-critical-text)]">{eur.format(consolidated.totalOverdue)}</div>
               </div>
             </div>
-            <div>
-              <div className="text-[10px] uppercase text-slate-500">TVA nette</div>
-              <div className="font-mono font-bold text-sky-300">{eur.format(consolidated.totalVatNet)}</div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase text-slate-500">Impayés</div>
-              <div className="font-mono font-bold text-red-400">{eur.format(consolidated.totalOverdue)}</div>
-            </div>
-          </div>
 
-          {consolidated.rankedByRevenue.length > 0 && (
-            <div className="mt-4 border-t border-slate-800 pt-3">
-              <div className="text-[10px] uppercase text-slate-500 mb-2">Top clients par CA HTVA</div>
-              <div className="space-y-1.5">
-                {consolidated.rankedByRevenue.map((c, i) => (
-                  <div key={c.name} className="flex items-center gap-2 text-xs">
-                    <span className="w-4 text-slate-500 font-mono">{i + 1}.</span>
-                    <span className="flex-1 text-slate-300 truncate">{c.name}</span>
-                    <span className="font-mono text-slate-200">{eur.format(c.revenueExclVat)}</span>
-                  </div>
-                ))}
+            {consolidated.rankedByRevenue.length > 0 && (
+              <div className="mt-4 border-t border-[var(--border-subtle)] pt-3">
+                <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)] mb-2">Top clients par CA HTVA</div>
+                <div className="space-y-1.5">
+                  {consolidated.rankedByRevenue.map((c, i) => (
+                    <div key={c.name} className="flex items-center gap-2 text-[length:var(--text-xs)]">
+                      <span className="w-4 text-[var(--text-tertiary)] font-mono tnum">{i + 1}.</span>
+                      <span className="flex-1 text-[var(--text-secondary)] truncate">{c.name}</span>
+                      <span className="font-mono tnum text-[var(--text-primary)]">{eur.format(c.revenueExclVat)}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </CardBody>
+        </Card>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-slate-500">
+          <div className="flex items-center justify-center py-20 text-[var(--text-tertiary)]">
             <Loader2 className="h-6 w-6 animate-spin mr-2" /> Chargement des dossiers…
           </div>
         ) : (
@@ -288,42 +299,43 @@ export function FirmPortalView() {
               if (!kpi) return null;
               const net = kpi.vatCollected - kpi.vatDeductible;
               return (
-                <div
+                <Card
                   key={tenant.id}
-                  className="rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-slate-700 transition overflow-hidden"
+                  flush
+                  className="hover:border-[var(--border-default)] transition-colors"
                 >
                   <div className="p-5">
                     <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                       {/* Identity */}
                       <div className="flex items-center gap-3 lg:w-72 shrink-0">
-                        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/25">
+                        <span className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] bg-[var(--accent-soft)] text-[var(--accent-solid)] border border-[var(--accent-soft-border)]">
                           <Building2 className="h-5 w-5" />
                         </span>
                         <div className="min-w-0">
-                          <div className="font-semibold text-slate-100 truncate">{tenant.name}</div>
-                          <div className="text-[11px] text-slate-400 font-mono">{tenant.bceDigits} · {tenant.vatRegime}</div>
+                          <div className="font-semibold text-[var(--text-primary)] truncate">{tenant.name}</div>
+                          <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)] font-mono tnum">{tenant.bceDigits} · {tenant.vatRegime}</div>
                         </div>
                       </div>
 
                       {/* KPIs */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
                         <div>
-                          <div className="text-[10px] uppercase text-slate-500">CA</div>
-                          <div className="font-bold text-slate-100">{eur.format(kpi.turnover)}</div>
+                          <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">CA</div>
+                          <div className="font-bold text-[var(--text-primary)]">{eur.format(kpi.turnover)}</div>
                         </div>
                         <div>
-                          <div className="text-[10px] uppercase text-slate-500">TVA nette</div>
-                          <div className={`font-bold ${net >= 0 ? 'text-emerald-300' : 'text-sky-300'}`}>{eur.format(net)}</div>
+                          <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">TVA nette</div>
+                          <div className={`font-bold ${net >= 0 ? 'text-[var(--state-positive-text)]' : 'text-[var(--state-info-text)]'}`}>{eur.format(net)}</div>
                         </div>
                         <div>
-                          <div className="text-[10px] uppercase text-slate-500">Impayés</div>
-                          <div className={`font-bold ${kpi.overdueCount > 0 ? 'text-red-400' : 'text-slate-300'}`}>
+                          <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">Impayés</div>
+                          <div className={`font-bold ${kpi.overdueCount > 0 ? 'text-[var(--state-critical-text)]' : 'text-[var(--text-secondary)]'}`}>
                             {kpi.overdueCount} · {eur.format(kpi.overdueAmount)}
                           </div>
                         </div>
                         <div>
-                          <div className="text-[10px] uppercase text-slate-500">Pièces</div>
-                          <div className="font-bold text-slate-300">{kpi.invoiceCount} fact. · {kpi.expenseCount} ach.</div>
+                          <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">Pièces</div>
+                          <div className="font-bold text-[var(--text-secondary)]">{kpi.invoiceCount} fact. · {kpi.expenseCount} ach.</div>
                         </div>
                       </div>
 
@@ -332,10 +344,10 @@ export function FirmPortalView() {
                         <button
                           onClick={() => toggleDeclaration(tenant.id, kpi.selfDeclaration)}
                           disabled={busyTenant === tenant.id}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                          className={`inline-flex items-center justify-center gap-1.5 h-[var(--control-height)] px-3 rounded-[var(--radius-md)] text-[length:var(--text-xs)] font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                             kpi.selfDeclaration
-                              ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25 hover:bg-emerald-500/20'
-                              : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                              ? 'bg-[var(--state-positive-bg)] text-[var(--state-positive-text)] border-[var(--state-positive-border)] hover:bg-[var(--bg-hover)]'
+                              : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] border-[var(--border-default)] hover:bg-[var(--bg-hover)]'
                           }`}
                           title="Autoriser le client à déposer sa propre déclaration TVA"
                         >
@@ -349,67 +361,66 @@ export function FirmPortalView() {
                           {kpi.selfDeclaration ? 'Déclaration client active' : 'Déclaration client bloquée'}
                         </button>
 
-                        <button
-                          onClick={() => openDetail(tenant.id)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 transition"
-                        >
+                        <Button variant="secondary" onClick={() => openDetail(tenant.id)}>
                           <FileText className="h-3.5 w-3.5" /> Dossier
-                        </button>
+                        </Button>
 
-                        <button
-                          onClick={() => enterClientWorkspace(tenant.id)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 hover:bg-amber-400 transition"
-                        >
+                        <Button variant="primary" onClick={() => enterClientWorkspace(tenant.id)}>
                           <ArrowUpRight className="h-3.5 w-3.5" /> Espace client
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </div>
 
                   {/* Inline dossier */}
                   {selected === tenant.id && (
-                    <div className="border-t border-slate-800 bg-slate-950/60 p-5">
+                    <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-sunken)] p-5">
                       <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
-                          <FileText className="h-4 w-4 text-amber-400" /> Dossier {selectedTenant?.name}
+                        <div className="flex items-center gap-2 text-[length:var(--text-sm)] font-semibold text-[var(--text-primary)]">
+                          <FileText className="h-4 w-4 text-[var(--accent-solid)]" /> Dossier {selectedTenant?.name}
                         </div>
                         <button
                           onClick={() => setSelected(null)}
-                          className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-white"
+                          className="inline-flex items-center gap-1 text-[length:var(--text-xs)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                         >
                           <ArrowLeft className="h-3.5 w-3.5" /> Fermer
                         </button>
                       </div>
 
                       {detailLoading ? (
-                        <div className="py-8 text-center text-slate-500">
+                        <div className="py-8 text-center text-[var(--text-tertiary)]">
                           <Loader2 className="h-5 w-5 animate-spin mx-auto" />
                         </div>
                       ) : (
                         <div className="space-y-5">
                           <div className="grid md:grid-cols-2 gap-5">
                           <div>
-                            <div className="text-[11px] uppercase text-slate-500 mb-2">Factures clients</div>
+                            <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)] mb-2">Factures clients</div>
                             <div className="space-y-2">
                               {detail?.invoices.length === 0 && (
-                                <p className="text-xs text-slate-500">Aucune facture.</p>
+                                <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">Aucune facture.</p>
                               )}
                               {detail?.invoices.map((inv) => (
-                                <div key={inv.id} className="flex items-center justify-between rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-xs">
+                                <div key={inv.id} className="flex items-center justify-between rounded-[var(--radius-md)] bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-3 py-2 text-[length:var(--text-xs)]">
                                   <div className="flex items-center gap-2">
-                                    <FileText className="h-3.5 w-3.5 text-slate-500" />
-                                    <span className="font-mono text-slate-300">{inv.invoiceNumber}</span>
-                                    <span className="text-slate-500">{inv.client.name}</span>
+                                    <FileText className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
+                                    <span className="font-mono tnum text-[var(--text-secondary)]">{inv.invoiceNumber}</span>
+                                    <span className="text-[var(--text-tertiary)]">{inv.client.name}</span>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-slate-200">{eur.format(inv.totalInclVat)}</span>
-                                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                                      inv.status === 'paid'
-                                        ? 'bg-emerald-500/10 text-emerald-300'
-                                        : inv.status === 'overdue'
-                                          ? 'bg-red-500/10 text-red-300'
-                                          : 'bg-slate-800 text-slate-300'
-                                    }`}>{inv.status}</span>
+                                    <span className="font-semibold text-[var(--text-primary)]">{eur.format(inv.totalInclVat)}</span>
+                                    <Badge
+                                      tone={
+                                        inv.status === 'paid'
+                                          ? 'positive'
+                                          : inv.status === 'overdue'
+                                            ? 'critical'
+                                            : 'neutral'
+                                      }
+                                      className="rounded-[var(--radius-full)] font-semibold"
+                                    >
+                                      {inv.status}
+                                    </Badge>
                                   </div>
                                 </div>
                               ))}
@@ -417,26 +428,26 @@ export function FirmPortalView() {
                           </div>
 
                           <div>
-                            <div className="text-[11px] uppercase text-slate-500 mb-2">Achats & TVA déductible</div>
+                            <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)] mb-2">Achats & TVA déductible</div>
                             <div className="space-y-2">
                               {detail?.expenses.length === 0 && (
-                                <p className="text-xs text-slate-500">Aucun achat.</p>
+                                <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">Aucun achat.</p>
                               )}
                               {detail?.expenses.map((exp) => (
-                                <div key={exp.id} className="flex items-center justify-between rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-xs">
+                                <div key={exp.id} className="flex items-center justify-between rounded-[var(--radius-md)] bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-3 py-2 text-[length:var(--text-xs)]">
                                   <div className="flex items-center gap-2">
-                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                                    <span className="text-slate-300">{exp.supplierName}</span>
-                                    <span className="text-slate-500">{exp.category}</span>
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-[var(--state-positive-text)]" />
+                                    <span className="text-[var(--text-secondary)]">{exp.supplierName}</span>
+                                    <span className="text-[var(--text-tertiary)]">{exp.category}</span>
                                   </div>
-                                  <span className="font-semibold text-slate-200">{eur.format(exp.deductibleVat)}</span>
+                                  <span className="font-semibold text-[var(--text-primary)]">{eur.format(exp.deductibleVat)}</span>
                                 </div>
                               ))}
                             </div>
                           </div>
                           </div>
 
-                          <div className="pt-4 border-t border-slate-800">
+                          <div className="pt-4 border-t border-[var(--border-subtle)]">
                             <CabinetDeclarationPanel
                               company={tenantToCompanyProfile(tenant)}
                               invoices={detail?.invoices ?? []}
@@ -444,11 +455,11 @@ export function FirmPortalView() {
                             />
                           </div>
 
-                          <div className="pt-4 border-t border-slate-800">
+                          <div className="pt-4 border-t border-[var(--border-subtle)]">
                             <FiscalStrategyPanel clientName={selectedTenant?.name ?? ''} />
                           </div>
 
-                          <div className="pt-4 border-t border-slate-800">
+                          <div className="pt-4 border-t border-[var(--border-subtle)]">
                             <FiscalRecommendationsPanel
                               profile={buildProfile(detail, kpis[tenant.id], tenant.vatRegime)}
                             />
@@ -457,14 +468,14 @@ export function FirmPortalView() {
                       )}
                     </div>
                   )}
-                </div>
+                </Card>
               );
             })}
           </div>
         )}
       </main>
 
-      <footer className="border-t border-slate-900 py-4 text-center text-[11px] text-slate-600">
+      <footer className="border-t border-[var(--border-subtle)] py-4 text-center text-[length:var(--text-2xs)] text-[var(--text-disabled)]">
         BRABO Cabinet — séparation stricte des dossiers par tenant · piste d'audit chaînée SHA-256
       </footer>
     </div>

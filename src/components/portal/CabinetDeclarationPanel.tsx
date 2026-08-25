@@ -9,6 +9,8 @@ import {
   generateIntervatVatDeclarationXml,
 } from '../../utils/belgianAccounting';
 import { dbExpenseToClient, dbInvoiceToClient } from '../../services/tenantWorkspace';
+import { Badge } from '../ui/Badge';
+import { Button } from '../ui/Button';
 
 const eur = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' });
 
@@ -58,13 +60,13 @@ export function CabinetDeclarationPanel({ company, invoices, expenses }: Cabinet
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
-          <Landmark className="h-4 w-4 text-amber-400" /> Déclarations & dépôts
+        <div className="flex items-center gap-2 text-[length:var(--text-sm)] font-semibold text-[var(--text-primary)]">
+          <Landmark className="h-4 w-4 text-[var(--accent-solid)]" /> Déclarations & dépôts
         </div>
         <select
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
-          className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-amber-300 font-semibold"
+          className="bg-[var(--bg-sunken)] border border-[var(--border-default)] rounded-[var(--radius-md)] px-2 py-1 text-[length:var(--text-xs)] text-[var(--accent-solid)] font-semibold"
         >
           <option value="2026-Q1">T1 2026</option>
           <option value="2026-Q2">T2 2026</option>
@@ -73,35 +75,39 @@ export function CabinetDeclarationPanel({ company, invoices, expenses }: Cabinet
         </select>
       </div>
 
-      <div className={`rounded-lg border p-3 ${isDue ? 'border-amber-500/30 bg-amber-950/20' : 'border-emerald-500/30 bg-emerald-950/20'}`}>
-        <div className="text-[10px] uppercase text-slate-500">
+      <div
+        className={`rounded-[var(--radius-md)] border p-3 ${
+          isDue
+            ? 'border-[var(--state-warning-border)] bg-[var(--state-warning-bg)]'
+            : 'border-[var(--state-positive-border)] bg-[var(--state-positive-bg)]'
+        }`}
+      >
+        <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">
           {isDue ? 'TVA à verser (grille 71)' : 'Crédit TVA (grille 72)'} · {period}
         </div>
-        <div className={`text-xl font-mono font-black ${isDue ? 'text-amber-300' : 'text-emerald-300'}`}>
+        <div
+          className={`text-[length:var(--text-xl)] font-mono tnum font-black ${
+            isDue ? 'text-[var(--accent-solid)]' : 'text-[var(--state-positive-text)]'
+          }`}
+        >
           {eur.format(balance)}
         </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
         {filed === period ? (
-          <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/40">
+          <Badge tone="positive" className="h-[var(--control-height)] px-3 gap-1.5 font-bold">
             <FileCheck2 className="h-4 w-4" /> TVA déposée ({period})
-          </span>
+          </Badge>
         ) : (
-          <button
-            onClick={fileVat}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold shadow-md shadow-amber-500/20 transition"
-          >
+          <Button variant="primary" onClick={fileVat} className="shadow-[var(--shadow)]">
             <Download className="h-4 w-4" /> Déposer la déclaration TVA
-          </button>
+          </Button>
         )}
 
-        <button
-          onClick={fileListing}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
-        >
-          <Users className="h-4 w-4 text-blue-400" /> Listing clients {listing.length > 0 ? `(${listing.length})` : ''}
-        </button>
+        <Button variant="secondary" onClick={fileListing}>
+          <Users className="h-4 w-4 text-[var(--state-info-text)]" /> Listing clients {listing.length > 0 ? `(${listing.length})` : ''}
+        </Button>
       </div>
     </div>
   );

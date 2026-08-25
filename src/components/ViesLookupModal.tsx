@@ -97,23 +97,23 @@ export const ViesLookupModal: React.FC<ViesLookupModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150 text-slate-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-overlay)] backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] max-w-2xl w-full shadow-[var(--shadow-modal)] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150 text-[var(--text-primary)]">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-850">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-hover)]">
           <div className="flex items-center space-x-2.5">
-            <div className="p-2 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
+            <div className="p-2 bg-blue-500/10 text-[var(--state-info-text)] rounded-[var(--radius-md)] border border-blue-500/20">
               <Globe className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Vérificateur de TVA Intracommunautaire VIES</h2>
-              <p className="text-xs text-slate-400">Commission Européenne • Justificatif légal d'exonération Art. 39bis / 21 §2</p>
+              <h2 className="text-base font-bold text-[var(--text-primary)]">Vérificateur de TVA Intracommunautaire VIES</h2>
+              <p className="text-xs text-[var(--text-tertiary)]">Commission Européenne • Justificatif légal d'exonération Art. 39bis / 21 §2</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+            className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] rounded-[var(--radius-md)] hover:bg-[var(--bg-subtle)] transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -122,18 +122,18 @@ export const ViesLookupModal: React.FC<ViesLookupModalProps> = ({
         <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto text-xs">
           
           {/* Query Inputs */}
-          <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700/60 space-y-3">
-            <span className="text-xs font-bold text-amber-300 uppercase tracking-wider block">
+          <div className="bg-[var(--bg-subtle)] p-4 rounded-[var(--radius-md)] border border-[var(--border-default)] space-y-3">
+            <span className="text-xs font-bold text-[var(--state-warning-text)] uppercase tracking-wider block">
               Interrogation directe de la base VIES
             </span>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">État membre de l'UE</label>
+                <label className="block text-[var(--text-secondary)] font-semibold mb-1">État membre de l'UE</label>
                 <select
                   value={country}
                   onChange={(e) => setCountry(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500"
+                  className="w-full bg-[var(--bg-sunken)] border border-[var(--border-default)] rounded-[var(--radius-md)] px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-focus)]"
                 >
                   <option value="FR">France (FR)</option>
                   <option value="NL">Pays-Bas (NL)</option>
@@ -146,10 +146,10 @@ export const ViesLookupModal: React.FC<ViesLookupModalProps> = ({
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-slate-300 font-semibold mb-1">Numéro de TVA étranger</label>
+                <label className="block text-[var(--text-secondary)] font-semibold mb-1">Numéro de TVA étranger</label>
                 <div className="flex space-x-2">
                   <div className="flex-1 relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono font-bold text-slate-400">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono font-bold text-[var(--text-tertiary)]">
                       {country}
                     </span>
                     <input
@@ -157,14 +157,14 @@ export const ViesLookupModal: React.FC<ViesLookupModalProps> = ({
                       value={vatNumberInput}
                       onChange={(e) => setVatNumberInput(e.target.value)}
                       placeholder="83824040984"
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-10 pr-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-500"
+                      className="w-full bg-[var(--bg-sunken)] border border-[var(--border-default)] rounded-[var(--radius-md)] pl-10 pr-3 py-2 text-[var(--text-primary)] font-mono text-sm focus:outline-none focus:border-[var(--border-focus)]"
                     />
                   </div>
 
                   <button
                     onClick={handleVerify}
                     disabled={loading}
-                    className="px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 transition flex items-center shrink-0"
+                    className="px-4 py-2 rounded-[var(--radius-md)] bg-gradient-to-r bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] font-bold text-xs shadow-[var(--shadow)] shadow-[var(--shadow)] transition flex items-center shrink-0"
                   >
                     {loading ? <RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Search className="w-3.5 h-3.5 mr-1" />}
                     Vérifier
@@ -176,23 +176,23 @@ export const ViesLookupModal: React.FC<ViesLookupModalProps> = ({
 
           {/* Results display */}
           {result && (
-            <div className={`p-4 rounded-xl border ${
+            <div className={`p-4 rounded-[var(--radius-md)] border ${
               result.isValid 
-                ? 'bg-emerald-950/30 border-emerald-500/30 text-slate-200' 
-                : 'bg-red-950/30 border-red-500/30 text-red-200'
+                ? 'bg-[var(--state-positive-bg)] border-[var(--state-positive-border)] text-[var(--text-primary)]' 
+                : 'bg-[var(--state-critical-bg)] border-[var(--state-critical-border)] text-[var(--state-critical-text)]'
             } space-y-3`}>
               <div className="flex items-start justify-between">
                 <div className="flex items-center space-x-2">
                   {result.isValid ? (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <CheckCircle2 className="w-5 h-5 text-[var(--state-positive-text)] shrink-0" />
                   ) : (
-                    <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+                    <AlertCircle className="w-5 h-5 text-[var(--state-critical-text)] shrink-0" />
                   )}
                   <div>
                     <span className="font-bold text-sm block">
                       {result.isValid ? 'Numéro de TVA Intracommunautaire VALIDE' : 'Numéro de TVA INVALIDE ou Inconnu'}
                     </span>
-                    <span className="font-mono text-[11px] text-slate-400">
+                    <span className="font-mono text-[11px] text-[var(--text-tertiary)]">
                       N° TVA : {result.countryCode} {result.vatNumber}
                     </span>
                   </div>
@@ -200,30 +200,30 @@ export const ViesLookupModal: React.FC<ViesLookupModalProps> = ({
 
                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                   result.isValid 
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
-                    : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                    ? 'bg-[var(--state-positive-bg)] text-[var(--state-positive-text)] border border-[var(--state-positive-border)]' 
+                    : 'bg-[var(--state-critical-bg)] text-[var(--state-critical-text)] border border-[var(--state-critical-border)]'
                 }`}>
                   {result.isValid ? 'VIES CONFIRMÉ' : 'REJETÉ'}
                 </span>
               </div>
 
               {result.isValid && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800 text-[11px]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-[var(--border-subtle)] text-[11px]">
                   <div>
-                    <span className="text-slate-400 block">Raison sociale :</span>
-                    <span className="font-bold text-white">{result.name}</span>
+                    <span className="text-[var(--text-tertiary)] block">Raison sociale :</span>
+                    <span className="font-bold text-[var(--text-primary)]">{result.name}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">Adresse enregistrée :</span>
-                    <span className="text-slate-300">{result.address}</span>
+                    <span className="text-[var(--text-tertiary)] block">Adresse enregistrée :</span>
+                    <span className="text-[var(--text-secondary)]">{result.address}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">Horodatage de consultation :</span>
-                    <span className="font-mono text-slate-300">{result.requestDate}</span>
+                    <span className="text-[var(--text-tertiary)] block">Horodatage de consultation :</span>
+                    <span className="font-mono text-[var(--text-secondary)]">{result.requestDate}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">Identifiant unique de preuve :</span>
-                    <span className="font-mono font-bold text-amber-300">{result.consultationNumber}</span>
+                    <span className="text-[var(--text-tertiary)] block">Identifiant unique de preuve :</span>
+                    <span className="font-mono font-bold text-[var(--state-warning-text)]">{result.consultationNumber}</span>
                   </div>
                 </div>
               )}
@@ -231,17 +231,17 @@ export const ViesLookupModal: React.FC<ViesLookupModalProps> = ({
           )}
 
           {/* Legal Note */}
-          <div className="p-3 bg-slate-800/40 rounded-xl border border-slate-700/50 text-slate-400 text-[11px] leading-relaxed">
+          <div className="p-3 bg-[var(--bg-subtle)] rounded-[var(--radius-md)] border border-[var(--border-default)]/50 text-[var(--text-tertiary)] text-[11px] leading-relaxed">
             🛡️ <strong>Preuve fiscale requise par le SPF Finances :</strong> Pour facturer hors taxe à un client assujetti d'un autre État membre de l'UE (autoliquidation Art. 21 §2 ou livraison Art. 39bis), vous devez impérativement conserver la preuve de validation VIES avec le numéro de consultation horodaté.
           </div>
 
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-3.5 border-t border-slate-800 bg-slate-900">
+        <div className="flex items-center justify-between px-6 py-3.5 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)]">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
+            className="px-4 py-2 text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
           >
             Fermer
           </button>
@@ -249,9 +249,9 @@ export const ViesLookupModal: React.FC<ViesLookupModalProps> = ({
           {result && result.isValid && (
             <button
               onClick={handleCopy}
-              className="px-4 py-2 text-xs font-bold rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20 flex items-center"
+              className="px-4 py-2 text-xs font-bold rounded-[var(--radius-md)] bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] transition shadow-[var(--shadow)] shadow-[var(--shadow)] flex items-center"
             >
-              {copied ? <Check className="w-3.5 h-3.5 mr-1 text-slate-950" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
+              {copied ? <Check className="w-3.5 h-3.5 mr-1 text-[var(--accent-text)]" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
               {copied ? 'Preuve Copiée !' : 'Copier l\'Attestation de Preuve'}
             </button>
           )}

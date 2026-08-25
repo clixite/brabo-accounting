@@ -43,8 +43,10 @@ export const Td: React.FC<{
   className?: string;
   align?: 'left' | 'right' | 'center';
   mono?: boolean;
-}> = ({ children, className, align = 'left', mono }) => (
+  colSpan?: number;
+}> = ({ children, className, align = 'left', mono, colSpan }) => (
   <td
+    colSpan={colSpan}
     className={cn(
       'h-[var(--row-height)] px-3',
       'text-[length:var(--text-xs)] text-[var(--text-secondary)]',
