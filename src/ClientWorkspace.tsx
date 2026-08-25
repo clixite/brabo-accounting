@@ -14,6 +14,7 @@ import type { ValidationReport } from './services/schematronValidator';
 import { SessionBar } from './components/portal/SessionBar';
 import { CommandPalette } from './components/CommandPalette';
 import { useSession } from './state/SessionContext';
+import { useToasts } from './state/ToastContext';
 import { loadTenantLedger, replaceTenantLedger } from './services/tenantWorkspace';
 import { transmitInvoice } from './services/peppolService';
 
@@ -41,6 +42,7 @@ const SchematronReportModal = lazy(() => import('./components/SchematronReportMo
 
 export function ClientWorkspace() {
   const { canSelfDeclare, activeTenant, user, activeRole, lang } = useSession();
+  const toast = useToasts();
 
   // 1. Active navigation tab
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
@@ -195,6 +197,11 @@ export function ClientWorkspace() {
       }
       return [savedInv, ...prev];
     });
+    toast.push(
+      savedInv.type === 'credit_note' ? 'info' : 'success',
+      savedInv.type === 'credit_note' ? 'Avoir enregistré' : savedInv.type === 'quote' ? 'Devis enregistré' : 'Facture enregistrée',
+      `${savedInv.invoiceNumber} · ${savedInv.totalInclVat.toFixed(2)} € TVAC · OGM ${savedInv.structuredCommunication}`,
+    );
   };
 
   const handleDeleteInvoice = (id: string) => {
@@ -218,6 +225,11 @@ export function ClientWorkspace() {
       if (status === 'paid') {
         updated.paidAt = new Date().toISOString();
       }
+      if (status === 'peppol_delivered') {
+        toast.push('success', 'Transmission Peppol', `${updated.invoiceNumber} livrée en UBL BIS 3.0 (EAS 0208).`);
+      } else if (status === 'paid') {
+        toast.push('success', 'Facture payée', `${updated.invoiceNumber} lettrée · ${updated.totalInclVat.toFixed(2)} €.`);
+      }
       return updated;
     }));
   };
@@ -225,6 +237,7 @@ export function ClientWorkspace() {
   // Handlers for Purchases
   const handleSavePurchase = (savedExp: PurchaseExpense) => {
     setPurchases(prev => [savedExp, ...prev]);
+    toast.push('success', 'Dépense enregistrée', `${savedExp.supplierName} · ${savedExp.amountInclVat.toFixed(2)} € · PCMN ${savedExp.pcmnAccount}`);
   };
 
   const handleDeletePurchase = (id: string) => {

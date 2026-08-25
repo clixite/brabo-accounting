@@ -1,4 +1,6 @@
 import { SessionProvider, useSession } from './state/SessionContext';
+import { ToastProvider } from './state/ToastContext';
+import { Toaster } from './components/ui/Toaster';
 import { LoginView } from './components/auth/LoginView';
 import { FirmPortalView } from './components/portal/FirmPortalView';
 import { ClientWorkspace } from './ClientWorkspace';
@@ -15,9 +17,9 @@ function WorkspaceRouter() {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-slate-400 text-sm">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-red-600 flex items-center justify-center text-slate-950 font-black text-xl animate-pulse">
+      <div className="min-h-screen bg-[var(--bg-app)] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-[var(--text-tertiary)] text-sm">
+          <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--accent-solid)] text-[var(--accent-text)] flex items-center justify-center font-black text-xl animate-pulse">
             B
           </div>
           <span>Chargement du coffre-fort comptable…</span>
@@ -45,7 +47,10 @@ function WorkspaceRouter() {
 export function App() {
   return (
     <SessionProvider>
-      <WorkspaceRouter />
+      <ToastProvider>
+        <WorkspaceRouter />
+        <Toaster />
+      </ToastProvider>
     </SessionProvider>
   );
 }
