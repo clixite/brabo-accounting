@@ -20,6 +20,12 @@ dist-ssr
 # Local deployment secrets (SSH keys, server credentials)
 .deploy/
 
+# Python / OCR server artifacts
+__pycache__/
+*.pyc
+venv/
+.venv/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
