@@ -156,6 +156,8 @@ export const PERMISSIONS = {
   TENANT_DELETE: 'tenant:delete',
   MEMBER_READ: 'member:read',
   MEMBER_MANAGE: 'member:manage',
+  /** Grants the accountant/firm the power to toggle a client's self-filing right. */
+  MEMBER_GRANT_DECLARATION: 'member:grant_declaration',
   INVOICE_READ: 'invoice:read',
   INVOICE_WRITE: 'invoice:write',
   INVOICE_DELETE: 'invoice:delete',
@@ -179,7 +181,7 @@ export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
   OWNER: [
     'tenant:read', 'tenant:update', 'tenant:delete',
-    'member:read', 'member:manage',
+    'member:read', 'member:manage', 'member:grant_declaration',
     'invoice:read', 'invoice:write', 'invoice:delete', 'invoice:send_peppol',
     'expense:read', 'expense:write', 'expense:delete', 'expense:approve',
     'bank:read', 'bank:write', 'bank:reconcile',
@@ -189,7 +191,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
   ],
   MANAGER: [
     'tenant:read',
-    'member:read',
+    'member:read', 'member:grant_declaration',
     'invoice:read', 'invoice:write', 'invoice:delete', 'invoice:send_peppol',
     'expense:read', 'expense:write', 'expense:delete', 'expense:approve',
     'bank:read', 'bank:write', 'bank:reconcile',
@@ -199,7 +201,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
   ],
   ACCOUNTANT_ITAA: [
     'tenant:read',
-    'member:read',
+    'member:read', 'member:grant_declaration',
     'invoice:read', 'invoice:write', 'invoice:send_peppol',
     'expense:read', 'expense:write', 'expense:approve',
     'bank:read', 'bank:write', 'bank:reconcile',
@@ -1305,6 +1307,11 @@ export interface DatabaseStore {
     create(ctx: RequestContext, input: CreateInput<Membership>): Promise<Membership>;
     update(ctx: RequestContext, id: ID, patch: UpdateInput<Membership>): Promise<Membership>;
     revoke(ctx: RequestContext, id: ID, reason?: string): Promise<Membership>;
+    /**
+     * Grants or revokes the client's right to file VAT returns autonomously.
+     * Requires `member:grant_declaration` (OWNER/MANAGER/ACCOUNTANT_ITAA).
+     */
+    setSelfDeclaration(ctx: RequestContext, id: ID, grant: boolean, reason?: string): Promise<Membership>;
   };
   invoices: InvoiceRepository;
   expenses: PurchaseExpenseRepository;

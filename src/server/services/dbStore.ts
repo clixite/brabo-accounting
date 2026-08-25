@@ -1758,6 +1758,39 @@ export class BraboDbStore implements DatabaseStore {
       this.schedulePersist();
       return clone(updated);
     },
+    setSelfDeclaration: async (ctx, id, grant, reason) => {
+      assertPermission(ctx, PERMISSIONS.MEMBER_GRANT_DECLARATION);
+      const existing = this.membershipRows.get(id);
+      if (!existing) throw new DbError('NOT_FOUND', `Membership ${id} not found.`, { id });
+      assertTenant(ctx, existing);
+
+      const before = clone(existing);
+      const currentlyDenied = existing.deniedPermissions.includes(PERMISSIONS.VAT_SUBMIT);
+      let deniedPermissions = [...existing.deniedPermissions];
+      // "Grant" removes the denial (the client regains vat:submit); "revoke"
+      // reinstates it (the firm keeps the filing right). Deny wins over grants.
+      if (grant && currentlyDenied) {
+        deniedPermissions = deniedPermissions.filter((p) => p !== PERMISSIONS.VAT_SUBMIT);
+      } else if (!grant && !currentlyDenied) {
+        deniedPermissions.push(PERMISSIONS.VAT_SUBMIT);
+      }
+
+      const updated: Membership = { ...existing, deniedPermissions, updatedAt: nowIso() };
+      this.membershipRows.set(id, updated);
+
+      await this.auditLogger.append(ctx, {
+        actorUserId: ctx.userId,
+        action: 'PERMISSION_CHANGE',
+        entity: 'Membership',
+        entityId: id,
+        entityLabel: `${updated.userId} → ${updated.role}`,
+        before: toJson(before),
+        after: toJson(updated),
+        reason: reason ?? `Self-declaration ${grant ? 'granted' : 'revoked'}`,
+      });
+      this.schedulePersist();
+      return clone(updated);
+    },
   };
 
   /* ----------------------------- sessions ------------------------------- */
