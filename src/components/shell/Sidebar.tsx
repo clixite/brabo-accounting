@@ -8,6 +8,7 @@ import {
   Calculator,
   UserCheck,
   Settings,
+  BarChart3,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -136,6 +137,7 @@ export function defaultNavGroups(params: {
     taxCenter: string;
     banking: string;
     fiduciary: string;
+    reports: string;
     settings: string;
   };
 }): NavGroup[] {
@@ -145,6 +147,7 @@ export function defaultNavGroups(params: {
       label: 'Pilotage',
       items: [
         { id: 'dashboard', label: labels.dashboard, icon: <LayoutDashboard className="w-4 h-4" /> },
+        { id: 'reports', label: labels.reports, icon: <BarChart3 className="w-4 h-4" /> },
       ],
     },
     {

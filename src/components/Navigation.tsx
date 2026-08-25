@@ -20,6 +20,7 @@ export type NavTab =
   | 'taxCenter'
   | 'banking'
   | 'fiduciary'
+  | 'reports'
   | 'settings';
 
 interface NavigationProps {

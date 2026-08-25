@@ -12,6 +12,7 @@ export const translations = {
       taxCenter: 'TVA & Fiscalité Belge',
       banking: 'Banque & CODA',
       fiduciary: 'Expert-Comptable ITAA',
+      reports: 'Rapports',
       settings: 'Paramètres & PCMN',
     },
     dashboard: {
@@ -135,6 +136,7 @@ export const translations = {
       taxCenter: 'Btw & Belgische Fiscaliteit',
       banking: 'Bank & CODA',
       fiduciary: 'ITAA Boekhouder',
+      reports: 'Rapporten',
       settings: 'Instellingen & MAR',
     },
     dashboard: {
@@ -258,6 +260,7 @@ export const translations = {
       taxCenter: 'VAT & Belgian Taxes',
       banking: 'Banking & CODA',
       fiduciary: 'ITAA Accountant',
+      reports: 'Reports',
       settings: 'Settings & PCMN',
     },
     dashboard: {

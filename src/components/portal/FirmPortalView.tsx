@@ -18,6 +18,8 @@ import { useSession } from '../../state/SessionContext';
 import type { Invoice, PurchaseExpense } from '../../server/types/db';
 import { SessionBar } from './SessionBar';
 import { FiscalStrategyPanel } from './FiscalStrategyPanel';
+import { FiscalRecommendationsPanel } from './FiscalRecommendationsPanel';
+import type { ClientFinancialProfile } from '../../services/fiscalRecommender';
 
 interface ClientKpi {
   tenantId: string;
@@ -37,6 +39,27 @@ interface ClientDetail {
 }
 
 const eur = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' });
+
+/** Builds the fiscal-recommendation input from a dossier's loaded data. */
+function buildProfile(
+  detail: ClientDetail | null,
+  kpi: ClientKpi | undefined,
+  vatRegime: string,
+): ClientFinancialProfile {
+  const invoices = detail?.invoices ?? [];
+  const expenses = detail?.expenses ?? [];
+  return {
+    turnoverExclVat: invoices.reduce((a, i) => a + i.subtotalExclVat, 0),
+    vatCollected: invoices.reduce((a, i) => a + i.totalVatAmount, 0),
+    vatDeductible: expenses.reduce((a, e) => a + e.deductibleVat, 0),
+    expensesExclVat: expenses.reduce((a, e) => a + e.amountExclVat, 0),
+    overdueCount: invoices.filter((i) => i.status === 'overdue').length,
+    overdueAmount: invoices.filter((i) => i.status === 'overdue').reduce((a, i) => a + i.amountDue, 0),
+    selfDeclarationGranted: kpi?.selfDeclaration ?? false,
+    vatRegime,
+    hasDirectorRemuneration45k: false,
+  };
+}
 
 /**
  * Cabinet / firm portal. The expert-comptable pilots all client dossiers from
@@ -338,6 +361,12 @@ export function FirmPortalView() {
 
                           <div className="pt-4 border-t border-slate-800">
                             <FiscalStrategyPanel clientName={selectedTenant?.name ?? ''} />
+                          </div>
+
+                          <div className="pt-4 border-t border-slate-800">
+                            <FiscalRecommendationsPanel
+                              profile={buildProfile(detail, kpis[tenant.id], tenant.vatRegime)}
+                            />
                           </div>
                         </div>
                       )}

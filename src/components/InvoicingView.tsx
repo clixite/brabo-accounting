@@ -17,6 +17,9 @@ import {
 } from 'lucide-react';
 import { Card, CardBody, CardHeader } from './ui/Card';
 import { Button, IconButton } from './ui/Button';
+import { SplitView } from './ui/SplitView';
+import { Segmented } from './ui/Segmented';
+import { KebabMenu } from './ui/KebabMenu';
 import { Input } from './ui/Input';
 import { Select } from './ui/Select';
 import { Badge, CodeChip, StatusDot } from './ui/Badge';
@@ -63,10 +66,12 @@ export const InvoicingView: React.FC<InvoicingViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [queue, setQueue] = useState<'all' | 'todo' | 'overdue' | 'paid'>('todo');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [copiedOgm, setCopiedOgm] = useState<string | null>(null);
 
   const filteredInvoices = invoices.filter((inv) => {
-    const matchesSearch = 
+    const matchesSearch =
       inv.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       inv.client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       inv.client.bceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -75,20 +80,23 @@ export const InvoicingView: React.FC<InvoicingViewProps> = ({
     const matchesType = filterType === 'all' || inv.type === filterType;
     const matchesStatus = filterStatus === 'all' || inv.status === filterStatus;
 
-    return matchesSearch && matchesType && matchesStatus;
+    const matchesQueue =
+      queue === 'all'
+        ? true
+        : queue === 'paid'
+          ? inv.status === 'paid'
+          : queue === 'overdue'
+            ? inv.status === 'overdue'
+            : // todo
+              inv.status === 'draft' || inv.status === 'sent' || inv.status === 'peppol_delivered' || inv.status === 'overdue';
+
+    return matchesSearch && matchesType && matchesStatus && matchesQueue;
   });
 
-  const totalInvoiced = invoices
-    .filter(i => i.type === 'invoice' && i.status !== 'cancelled')
-    .reduce((acc, i) => acc + i.totalInclVat, 0);
+  const selectedInvoice =
+    (selectedId ? invoices.find((i) => i.id === selectedId) : null) ||
+    (filteredInvoices.length > 0 ? filteredInvoices[0] : null);
 
-  const totalPaid = invoices
-    .filter(i => i.status === 'paid' && i.type === 'invoice')
-    .reduce((acc, i) => acc + i.totalInclVat, 0);
-
-  const totalOutstanding = invoices
-    .filter(i => (i.status === 'sent' || i.status === 'peppol_delivered' || i.status === 'overdue') && i.type === 'invoice')
-    .reduce((acc, i) => acc + i.totalInclVat, 0);
 
   const handleCopyOgm = (ogm: string) => {
     navigator.clipboard.writeText(ogm);
@@ -102,8 +110,8 @@ export const InvoicingView: React.FC<InvoicingViewProps> = ({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-4">
+      {/* Page header (compact) */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-2 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
@@ -116,18 +124,11 @@ export const InvoicingView: React.FC<InvoicingViewProps> = ({
             <FileText className="w-5 h-5 text-[var(--text-tertiary)]" />
             {t.title}
           </h1>
-          <p className="mt-1 text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
-            {t.subtitle}
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="secondary" onClick={onNewQuote}>
-            + {t.createQuote}
-          </Button>
-          <Button variant="secondary" onClick={onNewCreditNote}>
-            + {t.createCreditNote}
-          </Button>
+          <Button variant="secondary" onClick={onNewQuote}>+ {t.createQuote}</Button>
+          <Button variant="secondary" onClick={onNewCreditNote}>+ {t.createCreditNote}</Button>
           <Button variant="primary" onClick={onNewInvoice}>
             <Plus className="w-4 h-4" />
             {t.createInvoice}
@@ -135,73 +136,57 @@ export const InvoicingView: React.FC<InvoicingViewProps> = ({
         </div>
       </div>
 
-      {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Card>
-          <CardBody className="flex items-baseline justify-between gap-3">
-            <div>
-              <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Total facturé (TVAC)</div>
-              <div className="mt-1"><Money value={totalInvoiced} /></div>
-            </div>
-            <Badge tone="neutral">Période</Badge>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody className="flex items-baseline justify-between gap-3">
-            <div>
-              <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Total encaissé</div>
-              <div className="mt-1"><Money value={totalPaid} /></div>
-            </div>
-            <Badge tone="positive" dot>Payé</Badge>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody className="flex items-baseline justify-between gap-3">
-            <div>
-              <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">En attente</div>
-              <div className="mt-1"><Money value={totalOutstanding} /></div>
-            </div>
-            <Badge tone="warning" dot>À encaisser</Badge>
-          </CardBody>
-        </Card>
-      </div>
+      <SplitView
+        left={
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Segmented
+                value={queue}
+                onChange={setQueue}
+                items={[
+                  { value: 'todo', label: 'À traiter' },
+                  { value: 'overdue', label: 'En retard' },
+                  { value: 'paid', label: 'Payées' },
+                  { value: 'all', label: 'Toutes' },
+                ]}
+              />
 
-      {/* Filters */}
-      <Card>
-        <CardBody className="grid grid-cols-1 md:grid-cols-[1fr_200px_200px] gap-2.5">
-          <div className="relative">
-            <Search className="w-4 h-4 text-[var(--text-tertiary)] absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <Input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={t.searchPlaceholder}
-              className="pl-8"
-            />
-          </div>
-          <Select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-            <option value="all">Tous types</option>
-            <option value="invoice">Factures</option>
-            <option value="quote">Devis</option>
-            <option value="credit_note">Notes de crédit</option>
-          </Select>
-          <Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="all">Tous statuts</option>
-            <option value="draft">{t.statusDraft}</option>
-            <option value="sent">{t.statusSent}</option>
-            <option value="peppol_delivered">{t.statusPeppol}</option>
-            <option value="paid">{t.statusPaid}</option>
-            <option value="overdue">{t.statusOverdue}</option>
-          </Select>
-        </CardBody>
-      </Card>
+              <div className="flex items-center gap-2">
+                <Badge tone="neutral">{filteredInvoices.length}</Badge>
+              </div>
+            </div>
 
-      {/* Table */}
-      <Card flush>
-        <CardHeader
-          title="Documents"
-          description={`${filteredInvoices.length} élément(s)`}
-        />
-        <DataTable stickyHeader>
+            <Card>
+              <CardBody className="grid grid-cols-1 md:grid-cols-[1fr_170px_170px] gap-2.5">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-[var(--text-tertiary)] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <Input
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder={t.searchPlaceholder}
+                    className="pl-8"
+                  />
+                </div>
+                <Select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+                  <option value="all">Tous types</option>
+                  <option value="invoice">Factures</option>
+                  <option value="quote">Devis</option>
+                  <option value="credit_note">Avoirs</option>
+                </Select>
+                <Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                  <option value="all">Tous statuts</option>
+                  <option value="draft">{t.statusDraft}</option>
+                  <option value="sent">{t.statusSent}</option>
+                  <option value="peppol_delivered">{t.statusPeppol}</option>
+                  <option value="paid">{t.statusPaid}</option>
+                  <option value="overdue">{t.statusOverdue}</option>
+                </Select>
+              </CardBody>
+            </Card>
+
+            <Card flush>
+              <CardHeader title="Documents" description={`${filteredInvoices.length} élément(s)`} />
+              <DataTable stickyHeader>
           <thead>
             <tr>
               <Th>{t.thNumber}</Th>
@@ -227,8 +212,14 @@ export const InvoicingView: React.FC<InvoicingViewProps> = ({
                         ? 'warning'
                         : 'neutral';
 
+              const active = selectedInvoice?.id === inv.id;
               return (
-                <Tr key={inv.id} interactive onClick={() => onEditInvoice(inv)}>
+                <Tr
+                  key={inv.id}
+                  interactive
+                  onClick={() => setSelectedId(inv.id)}
+                  className={active ? 'bg-[var(--accent-soft)]' : undefined}
+                >
                   <Td>
                     <div className="flex items-center gap-2">
                       <span className="font-mono tnum text-[var(--text-primary)] font-semibold">
@@ -411,7 +402,152 @@ export const InvoicingView: React.FC<InvoicingViewProps> = ({
             })}
           </tbody>
         </DataTable>
-      </Card>
+            </Card>
+          </div>
+        }
+        right={
+          <Card>
+            <CardHeader
+              title={selectedInvoice ? selectedInvoice.invoiceNumber : 'Sélection'}
+              description={selectedInvoice ? selectedInvoice.client.name : 'Sélectionne un document'}
+              actions={
+                selectedInvoice ? (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="secondary"
+                      className="h-[var(--control-height-sm)] px-2"
+                      onClick={() => generateInvoicePDF(selectedInvoice, company)}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      PDF
+                    </Button>
+                    {selectedInvoice.status !== 'paid' && (
+                      <Button
+                        variant="primary"
+                        className="h-[var(--control-height-sm)] px-2"
+                        onClick={() => onUpdateStatus(selectedInvoice.id, 'paid')}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Payé
+                      </Button>
+                    )}
+                    <KebabMenu
+                      items={[
+                        {
+                          label: 'Ouvrir / Modifier',
+                          onClick: () => onEditInvoice(selectedInvoice),
+                        },
+                        {
+                          label: 'Voir UBL XML',
+                          onClick: () => onViewPeppolXml(selectedInvoice),
+                        },
+                        {
+                          label: 'Valider Schematron',
+                          onClick: () => onValidateSchematron(selectedInvoice),
+                        },
+                        ...(selectedInvoice.status === 'overdue'
+                          ? [
+                              {
+                                label: 'Rappel / mise en demeure',
+                                onClick: () => onOpenLatePaymentModal(selectedInvoice),
+                              },
+                            ]
+                          : []),
+                        ...(selectedInvoice.status !== 'paid'
+                          ? [
+                              {
+                                label: 'Payconiq',
+                                onClick: () => onOpenPayconiq(selectedInvoice),
+                              },
+                            ]
+                          : []),
+                        {
+                          label: 'Supprimer',
+                          tone: 'danger',
+                          onClick: () => onDeleteInvoice(selectedInvoice.id),
+                        },
+                      ]}
+                    />
+                  </div>
+                ) : null
+              }
+            />
+            <CardBody className="space-y-3">
+              {!selectedInvoice ? (
+                <div className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
+                  Aucun document dans cette liste.
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-2 text-[length:var(--text-xs)]">
+                    <div className="p-2 rounded-[var(--radius-md)] bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Émission</div>
+                      <div className="mt-0.5 text-[var(--text-primary)]">{formatDate(selectedInvoice.date)}</div>
+                    </div>
+                    <div className="p-2 rounded-[var(--radius-md)] bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Échéance</div>
+                      <div className="mt-0.5 text-[var(--text-primary)]">{formatDate(selectedInvoice.dueDate)}</div>
+                    </div>
+                    <div className="col-span-2 p-2 rounded-[var(--radius-md)] bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">OGM</div>
+                      <div className="mt-0.5 flex items-center justify-between gap-2">
+                        <CodeChip>{selectedInvoice.structuredCommunication}</CodeChip>
+                        <IconButton label="Copier" onClick={() => handleCopyOgm(selectedInvoice.structuredCommunication)}>
+                          {copiedOgm === selectedInvoice.structuredCommunication ? (
+                            <Check className="w-4 h-4" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </IconButton>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Total TVAC</div>
+                      <Money value={selectedInvoice.totalInclVat} />
+                    </div>
+                    <div className="mt-1 flex items-baseline justify-between gap-3">
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Total TVA</div>
+                      <span className="font-mono tnum text-[length:var(--text-xs)] text-[var(--text-secondary)]">
+                        {selectedInvoice.totalVatAmount.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-baseline justify-between gap-3">
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">HTVA</div>
+                      <span className="font-mono tnum text-[length:var(--text-xs)] text-[var(--text-secondary)]">
+                        {selectedInvoice.subtotalExclVat.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="mt-2">
+                      <StatusDot
+                        tone={
+                          selectedInvoice.status === 'paid'
+                            ? 'positive'
+                            : selectedInvoice.status === 'overdue'
+                              ? 'critical'
+                              : selectedInvoice.status === 'sent'
+                                ? 'warning'
+                                : selectedInvoice.status === 'peppol_delivered'
+                                  ? 'info'
+                                  : 'neutral'
+                        }
+                      >
+                        {selectedInvoice.status.toUpperCase()}
+                      </StatusDot>
+                    </div>
+                  </div>
+
+                  <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                    Astuce : sélectionne une facture à gauche pour voir les actions et le résumé ici.
+                  </div>
+                </>
+              )}
+            </CardBody>
+          </Card>
+        }
+      />
     </div>
   );
 };

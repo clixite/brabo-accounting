@@ -16,6 +16,7 @@ import { ExpensesView } from './components/ExpensesView';
 import { PeppolHubView } from './components/PeppolHubView';
 import { TaxCenterView } from './components/TaxCenterView';
 import { BankingView } from './components/BankingView';
+import { ReportsView } from './components/ReportsView';
 import { FiduciaryView } from './components/FiduciaryView';
 import { SettingsView } from './components/SettingsView';
 import { InvoiceModal } from './components/InvoiceModal';
@@ -232,6 +233,15 @@ export function ClientWorkspace() {
             onOpenOgmTool={() => setIsOgmModalOpen(true)}
             onNavigateTab={(tab) => setCurrentTab(tab)}
             onViewInvoice={(inv) => handleEditInvoice(inv)}
+          />
+        )}
+
+        {currentTab === 'reports' && (
+          <ReportsView
+            company={company}
+            invoices={invoices}
+            purchases={purchases}
+            transactions={transactions}
           />
         )}
 

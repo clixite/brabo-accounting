@@ -44,6 +44,7 @@ export const AppShell: React.FC<{
           taxCenter: t.nav.taxCenter,
           banking: t.nav.banking,
           fiduciary: t.nav.fiduciary,
+          reports: t.nav.reports,
           settings: t.nav.settings,
         },
       }),
