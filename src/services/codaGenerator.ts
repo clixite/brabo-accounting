@@ -763,7 +763,7 @@ export function generateSampleCodaFile(options: SampleCodaOptions = {}): CodaGen
 
   return generateCodaFile({
     accountHolderName: options.accountHolderName ?? 'BRABO DIGITAL SOLUTIONS SRL',
-    accountHolderBce: options.accountHolderBce ?? '0789456123',
+    accountHolderBce: options.accountHolderBce ?? '0789456175',
     iban: options.iban ?? 'BE68 0012 3456 7890',
     currency: 'EUR',
     bank,

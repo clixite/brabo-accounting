@@ -6,7 +6,11 @@ import {
   PiggyBank,
   Building,
   Car,
-  FileText
+  FileText,
+  ShieldAlert,
+  CheckCircle2,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 import type { CompanyProfile, Invoice, PurchaseExpense } from '../types/accounting';
 import type { Language } from '../i18n/translations';
@@ -18,6 +22,7 @@ import {
   simulateBelgianSocialContributions 
 } from '../utils/belgianAccounting';
 import { generateBelcotaxXml, downloadBelcotaxFile } from '../services/belcotaxGenerator';
+import { runFiscalAudit } from '../services/fiscalAudit';
 import confetti from 'canvas-confetti';
 
 interface TaxCenterViewProps {
@@ -34,7 +39,7 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
   lang,
 }) => {
   const t = translations[lang].taxCenter;
-  const [activeTab, setActiveTab] = useState<'vat' | 'listing' | 'social' | 'isoc' | 'atn'>('vat');
+  const [activeTab, setActiveTab] = useState<'vat' | 'listing' | 'social' | 'isoc' | 'atn' | 'audit'>('vat');
   const [selectedPeriod, setSelectedPeriod] = useState('2026-Q1');
   const [netIncomeInput, setNetIncomeInput] = useState<number>(68000);
 
@@ -87,6 +92,8 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
   const minAtn2026 = 1600.00;
   const finalAnnualAtn = Math.max(minAtn2026, rawAnnualAtn);
   const monthlyAtn = finalAnnualAtn / 12;
+
+  const fiscalAudit = runFiscalAudit(invoices, purchases, company, '2026-Q1');
 
   const handleDownloadIntervatListing = () => {
     const xml = generateIntervatClientListingXML(2026, clientListing, company);
@@ -188,6 +195,20 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
             }`}
           >
             ATN Voiture
+          </button>
+          <button
+            onClick={() => setActiveTab('audit')}
+            className={`px-3 py-1.5 rounded-lg font-semibold transition flex items-center space-x-1 ${
+              activeTab === 'audit' ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span>Audit Fiscal</span>
+            {fiscalAudit.totalErrors > 0 && (
+              <span className={`px-1.5 rounded-full text-[10px] font-bold ${activeTab === 'audit' ? 'bg-slate-950 text-amber-300' : 'bg-red-500/20 text-red-300'}`}>
+                {fiscalAudit.totalErrors}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -719,6 +740,100 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
                   Frais déductibles dans la société
                 </span>
               </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* TAB 6: FISCAL AUDIT */}
+      {activeTab === 'audit' && (
+        <div className="space-y-6">
+          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 text-xs text-slate-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800 pb-4">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center">
+                  <ShieldAlert className="w-5 h-5 mr-2 text-amber-400" />
+                  Audit Fiscal Pré-Déclaration (Conformité TVA Belge)
+                </h3>
+                <p className="text-slate-400 mt-1">
+                  Contrôles automatiques de cohérence TVA, BCE, déductibilité et seuils légaux avant le dépôt de votre déclaration.
+                </p>
+              </div>
+
+              {/* Risk score */}
+              <div className={`px-5 py-3 rounded-xl border text-right ${
+                fiscalAudit.riskScore >= 20 ? 'bg-red-950/40 border-red-500/40' :
+                fiscalAudit.riskScore >= 5 ? 'bg-amber-950/40 border-amber-500/40' :
+                'bg-emerald-950/40 border-emerald-500/40'
+              }`}>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Score de risque fiscal</span>
+                <span className={`text-2xl font-mono font-black ${
+                  fiscalAudit.riskScore >= 20 ? 'text-red-400' : fiscalAudit.riskScore >= 5 ? 'text-amber-300' : 'text-emerald-400'
+                }`}>
+                  {fiscalAudit.riskScore}/100
+                </span>
+              </div>
+            </div>
+
+            {/* Summary counters */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-red-950/30 border border-red-500/30 p-3 rounded-xl text-center">
+                <span className="text-red-400 text-2xl font-mono font-black block">{fiscalAudit.totalErrors}</span>
+                <span className="text-red-300/70 text-[10px] uppercase font-bold">Anomalies bloquantes</span>
+              </div>
+              <div className="bg-amber-950/30 border border-amber-500/30 p-3 rounded-xl text-center">
+                <span className="text-amber-400 text-2xl font-mono font-black block">{fiscalAudit.totalWarnings}</span>
+                <span className="text-amber-300/70 text-[10px] uppercase font-bold">Avertissements</span>
+              </div>
+              <div className="bg-blue-950/30 border border-blue-500/30 p-3 rounded-xl text-center">
+                <span className="text-blue-400 text-2xl font-mono font-black block">{fiscalAudit.infos.length}</span>
+                <span className="text-blue-300/70 text-[10px] uppercase font-bold">Notes informatives</span>
+              </div>
+            </div>
+
+            {/* Issues list */}
+            <div className="space-y-2">
+              {fiscalAudit.issues.length === 0 ? (
+                <div className="p-6 text-center bg-emerald-950/30 border border-emerald-500/30 rounded-xl">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-2" />
+                  <span className="font-bold text-emerald-300">Aucune anomalie détectée</span>
+                </div>
+              ) : (
+                fiscalAudit.issues.map((issue, idx) => (
+                  <div key={idx} className={`p-3 rounded-xl border flex items-start space-x-3 ${
+                    issue.severity === 'error' ? 'bg-red-950/20 border-red-500/30 text-red-200' :
+                    issue.severity === 'warning' ? 'bg-amber-950/20 border-amber-500/30 text-amber-200' :
+                    'bg-blue-950/20 border-blue-500/30 text-blue-200'
+                  }`}>
+                    <div className="shrink-0 mt-0.5">
+                      {issue.severity === 'error' ? <AlertTriangle className="w-4 h-4 text-red-400" /> :
+                       issue.severity === 'warning' ? <AlertTriangle className="w-4 h-4 text-amber-400" /> :
+                       <Info className="w-4 h-4 text-blue-400" />}
+                    </div>
+                    <div className="flex-1">
+                      <span className="font-mono font-bold text-[10px] opacity-70">{issue.code}</span>
+                      <p className="leading-relaxed">{issue.message}</p>
+                    </div>
+                    {issue.documentId && (
+                      <span className="font-mono text-[10px] opacity-70 whitespace-nowrap">{issue.documentId}</span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Recommendations */}
+            <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/60 space-y-2">
+              <span className="font-bold text-amber-300 block">💡 Recommandations :</span>
+              <ul className="space-y-1 text-slate-300">
+                {fiscalAudit.recommendations.map((rec, idx) => (
+                  <li key={idx} className="flex items-start space-x-2">
+                    <span className="text-amber-400 mt-0.5">→</span>
+                    <span className="leading-relaxed">{rec}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
 
           </div>

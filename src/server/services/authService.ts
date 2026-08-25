@@ -61,7 +61,7 @@ function mockItsmeIdentity(): ItsmeIdentity {
     birthDate: '1982-01-01',
     loa: 'high',
     verifiedAt: new Date().toISOString(),
-    legalRepresentativeOf: ['0789456123'],
+    legalRepresentativeOf: ['0789456175'],
   };
 }
 

@@ -4,8 +4,8 @@ import { generateOGM } from '../utils/belgianAccounting';
 export const INITIAL_COMPANY_PROFILE: CompanyProfile = {
   name: 'Brabo Digital Solutions',
   legalForm: 'SRL',
-  bceNumber: 'BE 0789.456.123',
-  vatNumber: 'BE0789456123',
+  bceNumber: 'BE 0789.456.175',
+  vatNumber: 'BE0789456175',
   rpmCity: 'Bruxelles (Tribunal de l\'Entreprise Francophone)',
   street: 'Avenue Louise',
   number: '240',
@@ -13,10 +13,10 @@ export const INITIAL_COMPANY_PROFILE: CompanyProfile = {
   postalCode: '1050',
   city: 'Bruxelles',
   country: 'Belgique',
-  iban: 'BE68 0012 3456 7890',
-  bic: 'GEBABEBB',
-  bankName: 'BNP Paribas Fortis',
-  peppolEndpointId: '0208:0789456123',
+  iban: 'BE68 5390 0754 7034',
+  bic: 'BBRUBEBB',
+  bankName: 'ING Belgium',
+  peppolEndpointId: '0208:0789456175',
   email: 'contact@brabo-solutions.be',
   phone: '+32 (0)2 548 90 00',
   website: 'https://brabo-solutions.be',
@@ -569,7 +569,7 @@ export const INITIAL_BANK_TRANSACTIONS: BankTransaction[] = [
   }
 ];
 
-export const SAMPLE_CODA_FILE_CONTENT = `000002026022401BNP PARIBAS FORTIS        BRABO DIGITAL SOLUTIONS SRL      0789456123000
+export const SAMPLE_CODA_FILE_CONTENT = `000002026022401BNP PARIBAS FORTIS        BRABO DIGITAL SOLUTIONS SRL      0789456175000
 10044001234567890EUR02602200000000028450123
 210001000000000000000000000000000000000000000000000000175450026022110000000000000000000000000000000000000000000
 220001BE89001876543210       KREDBEBB   ANTWERP LOGISTICS HUB BV           
