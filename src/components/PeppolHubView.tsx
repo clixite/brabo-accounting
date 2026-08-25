@@ -15,6 +15,7 @@ import type { CompanyProfile, Invoice, PurchaseExpense } from '../types/accounti
 import type { Language } from '../i18n/translations';
 import { translations } from '../i18n/translations';
 import { validateBCE } from '../utils/belgianAccounting';
+import { peppolStatusLabel } from '../services/peppolService';
 
 interface PeppolHubViewProps {
   company: CompanyProfile;
@@ -24,6 +25,7 @@ interface PeppolHubViewProps {
   onViewInvoiceXml: (invoice: Invoice) => void;
   onOpenVies: () => void;
   onValidateSchematron: (invoice: Invoice) => void;
+  onSendPeppol: (invoice: Invoice) => void;
 }
 
 export const PeppolHubView: React.FC<PeppolHubViewProps> = ({
@@ -32,6 +34,7 @@ export const PeppolHubView: React.FC<PeppolHubViewProps> = ({
   onViewInvoiceXml,
   onOpenVies,
   onValidateSchematron,
+  onSendPeppol,
 }) => {
   const t = translations[lang].peppol;
   const [bceQuery, setBceQuery] = useState('BE 0477.472.701');
@@ -100,6 +103,7 @@ export const PeppolHubView: React.FC<PeppolHubViewProps> = ({
   };
 
   const peppolInvoices = invoices.filter(i => i.peppolStatus?.isSent);
+  const pendingInvoices = invoices.filter(i => i.type === 'invoice' && !i.peppolStatus?.isSent);
 
   return (
     <div className="space-y-6">
@@ -250,29 +254,82 @@ export const PeppolHubView: React.FC<PeppolHubViewProps> = ({
               <ArrowUpRight className="w-4 h-4 mr-2 text-emerald-400" />
               {t.outboxTitle}
             </h3>
-            <span className="text-xs text-slate-400">{peppolInvoices.length} transmises</span>
+            <span className="text-xs text-slate-400">{pendingInvoices.length} à envoyer · {peppolInvoices.length} transmises</span>
           </div>
 
-          <div className="space-y-2.5">
-            {peppolInvoices.map((inv) => (
-              <div
-                key={inv.id}
-                className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60 flex items-center justify-between text-xs"
-              >
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <span className="font-mono font-bold text-white">{inv.invoiceNumber}</span>
-                    <span className="text-slate-400">→</span>
-                    <span className="font-semibold text-slate-200">{inv.client.name}</span>
+          {/* Pending — send via Peppol */}
+          {pendingInvoices.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase text-slate-500 font-bold mb-2">À envoyer</div>
+              <div className="space-y-2">
+                {pendingInvoices.map((inv) => (
+                  <div
+                    key={inv.id}
+                    className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60 flex items-center justify-between text-xs"
+                  >
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <span className="font-mono font-bold text-white">{inv.invoiceNumber}</span>
+                        <span className="text-slate-400">→</span>
+                        <span className="font-semibold text-slate-200">{inv.client.name}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        {inv.totalInclVat.toFixed(2)} € · {inv.client.isPeppolEnabled ? 'Endpoint Peppol détecté' : 'Acheminement Hermès'}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <button
+                        onClick={() => onViewInvoiceXml(inv)}
+                        className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg transition"
+                        title="Voir le code XML UBL 2.1"
+                      >
+                        <FileCode className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => onSendPeppol(inv)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-bold transition"
+                      >
+                        <ArrowUpRight className="w-3.5 h-3.5" /> Envoyer
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2 text-[11px] text-slate-400 mt-0.5">
-                    <span className="font-mono">{inv.peppolStatus?.messageId}</span>
-                    <span>•</span>
-                    <span className="text-emerald-400 font-bold">200 OK Accepted</span>
-                  </div>
-                </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-                <div className="flex items-center space-x-2">
+          {/* Transmitted */}
+          <div>
+            <div className="text-[10px] uppercase text-slate-500 font-bold mb-2">Transmises</div>
+            <div className="space-y-2">
+              {peppolInvoices.length === 0 && (
+                <p className="text-xs text-slate-500">Aucune facture transmise pour l'instant.</p>
+              )}
+              {peppolInvoices.map((inv) => (
+                <div
+                  key={inv.id}
+                  className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60 flex items-center justify-between text-xs"
+                >
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-mono font-bold text-white">{inv.invoiceNumber}</span>
+                      <span className="text-slate-400">→</span>
+                      <span className="font-semibold text-slate-200">{inv.client.name}</span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-[11px] text-slate-400 mt-0.5">
+                      <span className="font-mono">{inv.peppolStatus?.messageId}</span>
+                      <span>•</span>
+                      <span className={`font-bold ${
+                        inv.peppolStatus?.deliveryResponseCode === 'REJECTED'
+                          ? 'text-red-400'
+                          : inv.peppolStatus?.deliveryResponseCode === 'PENDING'
+                            ? 'text-amber-400'
+                            : 'text-emerald-400'
+                      }`}>
+                        {peppolStatusLabel(inv.peppolStatus?.deliveryResponseCode)}
+                      </span>
+                    </div>
+                  </div>
                   <button
                     onClick={() => onViewInvoiceXml(inv)}
                     className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg transition"
@@ -281,8 +338,8 @@ export const PeppolHubView: React.FC<PeppolHubViewProps> = ({
                     <FileCode className="w-4 h-4" />
                   </button>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 

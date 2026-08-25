@@ -174,6 +174,8 @@ export const PERMISSIONS = {
   AUDIT_READ: 'audit:read',
   FIDUCIARY_READ: 'fiduciary:read',
   FIDUCIARY_MANAGE: 'fiduciary:manage',
+  DOCUMENT_READ: 'document:read',
+  DOCUMENT_WRITE: 'document:write',
 } as const;
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
@@ -188,6 +190,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     'vat:read', 'vat:submit',
     'audit:read',
     'fiduciary:read', 'fiduciary:manage',
+    'document:read', 'document:write',
   ],
   MANAGER: [
     'tenant:read',
@@ -198,6 +201,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     'vat:read',
     'audit:read',
     'fiduciary:read',
+    'document:read', 'document:write',
   ],
   ACCOUNTANT_ITAA: [
     'tenant:read',
@@ -208,6 +212,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     'vat:read', 'vat:submit',
     'audit:read',
     'fiduciary:read', 'fiduciary:manage',
+    'document:read', 'document:write',
   ],
   AUDITOR: [
     'tenant:read',
@@ -218,6 +223,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     'vat:read',
     'audit:read',
     'fiduciary:read',
+    'document:read',
   ],
   EMPLOYEE: [
     'tenant:read',
@@ -976,6 +982,7 @@ export const AUDIT_ENTITIES = {
   BANK_TRANSACTION: 'BankTransaction',
   FIDUCIARY_CONNECTION: 'FiduciaryConnection',
   VAT_DECLARATION: 'VatDeclaration',
+  SHARED_DOCUMENT: 'SharedDocument',
   SESSION: 'Session',
 } as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[keyof typeof AUDIT_ENTITIES];
@@ -1155,6 +1162,27 @@ export interface FiduciaryConnection extends TenantScoped {
 }
 
 /* -------------------------------------------------------------------------- */
+/* SharedDocument — cabinet ↔ client document register                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A document shared between the company and its accounting firm (GED). Metadata
+ * only: the binary payload lives in object storage (S3/Blob) keyed by
+ * `storageKey`, so this row stays lightweight and IndexedDB-friendly.
+ */
+export interface SharedDocument extends TenantScoped {
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  /** Free-form category, e.g. "Déclarations", "Contrats", "Reçus". */
+  category: string;
+  note?: string;
+  uploadedByUserId: UserId;
+  /** Object-storage key (or a synthetic reference in the demo). */
+  storageKey: string;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Auth session records                                                       */
 /* -------------------------------------------------------------------------- */
 
@@ -1319,6 +1347,7 @@ export interface DatabaseStore {
   statements: Repository<BankStatement>;
   transactions: BankTransactionRepository;
   fiduciaries: Repository<FiduciaryConnection>;
+  documents: Repository<SharedDocument>;
   sessions: {
     findById(id: ID): Promise<Session | null>;
     listForUser(userId: UserId): Promise<Session[]>;

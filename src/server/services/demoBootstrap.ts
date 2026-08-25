@@ -491,13 +491,18 @@ export async function seedDemoData(): Promise<void> {
       acceptedAt: new Date().toISOString(),
     });
 
-    let seq = 1;
-    for (const inv of spec.invoices) {
-      await seedInvoice(tenant.id, seq, inv);
-      seq += 1;
-    }
-    for (const exp of spec.expenses) {
-      await seedExpense(tenant.id, exp);
+    // The Brabo tenant has a live client workspace: its ledger is seeded by the
+    // client's own write-through (tenantWorkspace), not by this demo bootstrap —
+    // so the cabinet portal reflects exactly what the client encodes.
+    if (spec.key !== 'brabo') {
+      let seq = 1;
+      for (const inv of spec.invoices) {
+        await seedInvoice(tenant.id, seq, inv);
+        seq += 1;
+      }
+      for (const exp of spec.expenses) {
+        await seedExpense(tenant.id, exp);
+      }
     }
   }
 

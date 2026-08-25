@@ -52,6 +52,7 @@ import type {
   RequestContext,
   Role,
   Session,
+  SharedDocument,
   Sha256Hex,
   TenantId,
   Tenant,
@@ -312,6 +313,7 @@ export interface PersistedState {
   statements: BankStatement[];
   transactions: BankTransaction[];
   fiduciaries: FiduciaryConnection[];
+  documents: SharedDocument[];
   sessions: Session[];
   auditLogs: AuditLog[];
 }
@@ -1350,6 +1352,7 @@ export class BraboDbStore implements DatabaseStore {
   readonly receipts: InMemoryRepository<ExpenseReceipt>;
   readonly statements: InMemoryRepository<BankStatement>;
   readonly fiduciaries: InMemoryRepository<FiduciaryConnection>;
+  readonly documents: InMemoryRepository<SharedDocument>;
 
   constructor(adapter: PersistenceAdapter = detectAdapter()) {
     this.adapter = adapter;
@@ -1384,6 +1387,17 @@ export class BraboDbStore implements DatabaseStore {
       schedule,
       (row) => row.firmName,
     );
+    this.documents = new InMemoryRepository<SharedDocument>(
+      'SharedDocument',
+      {
+        read: PERMISSIONS.DOCUMENT_READ,
+        write: PERMISSIONS.DOCUMENT_WRITE,
+        delete: PERMISSIONS.DOCUMENT_WRITE,
+      },
+      this.auditLogger,
+      schedule,
+      (row) => row.fileName,
+    );
   }
 
   get audit(): AuditLogger {
@@ -1414,6 +1428,7 @@ export class BraboDbStore implements DatabaseStore {
     this.statements.hydrate(state.statements ?? []);
     this.transactions.hydrate(state.transactions ?? []);
     this.fiduciaries.hydrate(state.fiduciaries ?? []);
+    this.documents.hydrate(state.documents ?? []);
     this.auditLogger.hydrate(state.auditLogs ?? []);
   }
 
@@ -1430,6 +1445,7 @@ export class BraboDbStore implements DatabaseStore {
       statements: this.statements.snapshot(),
       transactions: this.transactions.snapshot(),
       fiduciaries: this.fiduciaries.snapshot(),
+      documents: this.documents.snapshot(),
       sessions: Array.from(this.sessionRows.values()),
       auditLogs: this.auditLogger.snapshot(),
     };
@@ -1464,6 +1480,7 @@ export class BraboDbStore implements DatabaseStore {
     this.statements.hydrate([]);
     this.transactions.hydrate([]);
     this.fiduciaries.hydrate([]);
+    this.documents.hydrate([]);
     this.auditLogger.hydrate([]);
     await this.adapter.clear();
   }

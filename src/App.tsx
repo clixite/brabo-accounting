@@ -11,7 +11,7 @@ import { ClientWorkspace } from './ClientWorkspace';
  * land on the firm portal, and company members land on their client workspace.
  */
 function WorkspaceRouter() {
-  const { status, mode } = useSession();
+  const { status, mode, forceClientWorkspace } = useSession();
 
   if (status === 'loading') {
     return (
@@ -28,6 +28,11 @@ function WorkspaceRouter() {
 
   if (status === 'unauthenticated') {
     return <LoginView />;
+  }
+
+  // The cabinet has opened a client's full workspace: show it regardless of role.
+  if (forceClientWorkspace) {
+    return <ClientWorkspace />;
   }
 
   if (mode === 'cabinet') {

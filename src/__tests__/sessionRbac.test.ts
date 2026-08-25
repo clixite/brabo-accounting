@@ -25,12 +25,15 @@ describe('Multi-tenant security (client ↔ cabinet separation)', () => {
   it('grants the accountant read access to every client tenant', async () => {
     const accountant = await dbStore.users.findByEmail(DEMO_USERS.accountant);
     const tenants = await dbStore.tenants.listForUser(accountant!.id);
+    let tenantsWithLedger = 0;
     for (const tenant of tenants) {
       const ctx = await dbStore.createContext(accountant!.id, tenant.id);
       const invoices = await dbStore.invoices.list(ctx, { limit: 1000 });
-      expect(invoices.items.length).toBeGreaterThan(0);
       expect(invoices.items.every((i) => i.tenantId === tenant.id)).toBe(true);
+      if (invoices.items.length > 0) tenantsWithLedger += 1;
     }
+    // Brabo is the live client workspace (no demo seed); Bois + Logistics are seeded.
+    expect(tenantsWithLedger).toBe(2);
   });
 
   it('blocks a client owner from entering another tenant (cross-tenant isolation)', async () => {

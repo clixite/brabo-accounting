@@ -43,6 +43,10 @@ export interface SessionContextValue {
   loginItsme: () => Promise<void>;
   logout: () => void;
   switchTenant: (tenantId: string) => Promise<void>;
+  /** True when the cabinet has opened a client's full workspace. */
+  forceClientWorkspace: boolean;
+  enterClientWorkspace: (tenantId: string) => Promise<void>;
+  exitClientWorkspace: () => void;
   grantSelfDeclaration: (tenantId: string) => Promise<void>;
   revokeSelfDeclaration: (tenantId: string) => Promise<void>;
 }
@@ -79,6 +83,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [activeTenantId, setActiveTenantId] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<Set<Permission>>(new Set());
   const [refreshTick, setRefreshTick] = useState(0);
+  const [forceClientWorkspace, setForceClientWorkspace] = useState(false);
 
   /** Recomputes the effective permission set for the active tenant. */
   const refreshPermissions = useCallback(async (userId: string, tenantId: string | null) => {
@@ -104,6 +109,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setMemberships(members);
     setTenants(tenantList);
     setActiveTenantId(chosen);
+    setForceClientWorkspace(false);
     setStatus('authenticated');
     globalThis.localStorage?.setItem(SESSION_KEY, activated.email);
     if (chosen) globalThis.localStorage?.setItem(TENANT_KEY, chosen);
@@ -164,6 +170,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setTenants([]);
     setActiveTenantId(null);
     setPermissions(new Set());
+    setForceClientWorkspace(false);
     setStatus('unauthenticated');
     globalThis.localStorage?.removeItem(SESSION_KEY);
     globalThis.localStorage?.removeItem(TENANT_KEY);
@@ -178,6 +185,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     },
     [user, refreshPermissions],
   );
+
+  /** The cabinet opens a client's full workspace (read inspection). */
+  const enterClientWorkspace = useCallback(
+    async (tenantId: string) => {
+      await switchTenant(tenantId);
+      setForceClientWorkspace(true);
+    },
+    [switchTenant],
+  );
+
+  const exitClientWorkspace = useCallback(() => {
+    setForceClientWorkspace(false);
+  }, []);
 
   /** The accountant toggles the client owner's self-filing right. */
   const setSelfDeclaration = useCallback(
@@ -233,6 +253,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     loginItsme,
     logout,
     switchTenant,
+    forceClientWorkspace,
+    enterClientWorkspace,
+    exitClientWorkspace,
     grantSelfDeclaration,
     revokeSelfDeclaration,
   };

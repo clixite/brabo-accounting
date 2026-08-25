@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import type { CompanyProfile, Invoice, PurchaseExpense, BankTransaction, DocumentType, InvoiceStatus } from './types/accounting';
 import { 
   INITIAL_COMPANY_PROFILE, 
@@ -10,30 +10,37 @@ import {
 import type { Language } from './i18n/translations';
 import type { NavTab } from './components/Navigation';
 import { AppShell } from './components/shell/AppShell';
-import { DashboardView } from './components/DashboardView';
-import { InvoicingView } from './components/InvoicingView';
-import { ExpensesView } from './components/ExpensesView';
-import { PeppolHubView } from './components/PeppolHubView';
-import { TaxCenterView } from './components/TaxCenterView';
-import { BankingView } from './components/BankingView';
-import { ReportsView } from './components/ReportsView';
-import { FiduciaryView } from './components/FiduciaryView';
-import { SettingsView } from './components/SettingsView';
-import { InvoiceModal } from './components/InvoiceModal';
-import { ExpenseModal } from './components/ExpenseModal';
-import { OgmToolModal } from './components/OgmToolModal';
-import { PeppolViewerModal } from './components/PeppolViewerModal';
-import { LatePaymentModal } from './components/LatePaymentModal';
-import { PayconiqModal } from './components/PayconiqModal';
-import { ViesLookupModal } from './components/ViesLookupModal';
-import { SchematronReportModal } from './components/SchematronReportModal';
 import { validateInvoiceSchematron } from './services/schematronValidator';
 import type { ValidationReport } from './services/schematronValidator';
 import { SessionBar } from './components/portal/SessionBar';
 import { useSession } from './state/SessionContext';
+import { loadTenantLedger, replaceTenantLedger } from './services/tenantWorkspace';
+import { transmitInvoice } from './services/peppolService';
+
+// Code-split the heavy views/modals so the initial bundle stays lean.
+const DashboardView = lazy(() => import('./components/DashboardView').then((m) => ({ default: m.DashboardView })));
+const InvoicingView = lazy(() => import('./components/InvoicingView').then((m) => ({ default: m.InvoicingView })));
+const ExpensesView = lazy(() => import('./components/ExpensesView').then((m) => ({ default: m.ExpensesView })));
+const PeppolHubView = lazy(() => import('./components/PeppolHubView').then((m) => ({ default: m.PeppolHubView })));
+const TaxCenterView = lazy(() => import('./components/TaxCenterView').then((m) => ({ default: m.TaxCenterView })));
+const BankingView = lazy(() => import('./components/BankingView').then((m) => ({ default: m.BankingView })));
+const ReportsView = lazy(() => import('./components/ReportsView').then((m) => ({ default: m.ReportsView })));
+const AuditTrailView = lazy(() => import('./components/AuditTrailView').then((m) => ({ default: m.AuditTrailView })));
+const DocumentsView = lazy(() => import('./components/DocumentsView').then((m) => ({ default: m.DocumentsView })));
+const PayrollView = lazy(() => import('./components/PayrollView').then((m) => ({ default: m.PayrollView })));
+const FiduciaryView = lazy(() => import('./components/FiduciaryView').then((m) => ({ default: m.FiduciaryView })));
+const SettingsView = lazy(() => import('./components/SettingsView').then((m) => ({ default: m.SettingsView })));
+const InvoiceModal = lazy(() => import('./components/InvoiceModal').then((m) => ({ default: m.InvoiceModal })));
+const ExpenseModal = lazy(() => import('./components/ExpenseModal').then((m) => ({ default: m.ExpenseModal })));
+const OgmToolModal = lazy(() => import('./components/OgmToolModal').then((m) => ({ default: m.OgmToolModal })));
+const PeppolViewerModal = lazy(() => import('./components/PeppolViewerModal').then((m) => ({ default: m.PeppolViewerModal })));
+const LatePaymentModal = lazy(() => import('./components/LatePaymentModal').then((m) => ({ default: m.LatePaymentModal })));
+const PayconiqModal = lazy(() => import('./components/PayconiqModal').then((m) => ({ default: m.PayconiqModal })));
+const ViesLookupModal = lazy(() => import('./components/ViesLookupModal').then((m) => ({ default: m.ViesLookupModal })));
+const SchematronReportModal = lazy(() => import('./components/SchematronReportModal').then((m) => ({ default: m.SchematronReportModal })));
 
 export function ClientWorkspace() {
-  const { canSelfDeclare } = useSession();
+  const { canSelfDeclare, activeTenant, user, activeRole } = useSession();
 
   // 1. Language state
   const [lang] = useState<Language>(() => {
@@ -64,6 +71,11 @@ export function ClientWorkspace() {
     return saved ? JSON.parse(saved) : INITIAL_BANK_TRANSACTIONS;
   });
 
+  // True once the workspace has been hydrated from the per-tenant store (or
+  // fallen back to its local seed), so the write-through only runs afterwards.
+  const [hydrated, setHydrated] = useState(false);
+  const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
+
   // Save to LocalStorage
   useEffect(() => {
     localStorage.setItem('brabo_lang', lang);
@@ -86,6 +98,48 @@ export function ClientWorkspace() {
   useEffect(() => {
     localStorage.setItem('brabo_transactions', JSON.stringify(transactions));
   }, [transactions]);
+
+  // Hydrate from the per-tenant store (cabinet → client direction). Once the
+  // store has a ledger for this tenant, it wins over the local seed.
+  useEffect(() => {
+    if (!activeTenant || !user || hydrated) return;
+    let cancelled = false;
+    loadTenantLedger(activeTenant.id, user.id)
+      .then((ledger) => {
+        if (cancelled) return;
+        if (ledger) {
+          setInvoices(ledger.invoices);
+          setPurchases(ledger.purchases);
+          setTransactions(ledger.transactions);
+        }
+        setHydrated(true);
+      })
+      .catch(() => {
+        if (!cancelled) setHydrated(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTenant, user, hydrated]);
+
+  // Write-through to the per-tenant store so the cabinet portal reflects
+  // exactly what the client encodes (source unique, bien séparé).
+  // Only the company's OWNER/MANAGER writes through; an accountant inspecting
+  // the workspace reads from the store but does not overwrite it.
+  useEffect(() => {
+    if (!activeTenant || !user || !hydrated) return;
+    if (activeRole !== 'OWNER' && activeRole !== 'MANAGER') return;
+    const timer = setTimeout(async () => {
+      setSyncState('syncing');
+      try {
+        await replaceTenantLedger(activeTenant.id, user.id, { company, invoices, purchases, transactions });
+        setSyncState('synced');
+      } catch {
+        setSyncState('error');
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [activeTenant, user, activeRole, hydrated, company, invoices, purchases, transactions]);
 
   // 4. Modal States
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -144,11 +198,13 @@ export function ClientWorkspace() {
       if (inv.id !== id) return inv;
       const updated: Invoice = { ...inv, status };
       if (status === 'peppol_delivered') {
+        const transmission = transmitInvoice(inv, company);
         updated.peppolStatus = {
-          isSent: true,
-          sentAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
-          messageId: `PEPPOL-BE-${Date.now()}`,
-          deliveryResponseCode: 'ACCEPTED',
+          isSent: transmission.status !== 'REJECTED',
+          sentAt: transmission.sentAt,
+          messageId: transmission.messageId,
+          deliveryResponseCode: transmission.status,
+          ublXml: transmission.ublXml,
         };
       }
       if (status === 'paid') {
@@ -208,9 +264,16 @@ export function ClientWorkspace() {
   const unreconciledBankCount = transactions.filter(t => !t.reconciled).length;
 
   return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-500 text-sm">
+          Chargement de l'espace client…
+        </div>
+      }
+    >
     <div>
       {/* Session & role strip (client ↔ cabinet separation) */}
-      <SessionBar />
+      <SessionBar syncState={syncState} />
 
       <AppShell
         company={company}
@@ -244,6 +307,12 @@ export function ClientWorkspace() {
             transactions={transactions}
           />
         )}
+
+        {currentTab === 'audit' && <AuditTrailView />}
+
+        {currentTab === 'documents' && <DocumentsView />}
+
+        {currentTab === 'payroll' && <PayrollView />}
 
         {currentTab === 'invoicing' && (
           <InvoicingView
@@ -281,6 +350,7 @@ export function ClientWorkspace() {
             onViewInvoiceXml={(inv) => setPeppolViewerInvoice(inv)}
             onOpenVies={handleOpenVies}
             onValidateSchematron={handleValidateSchematron}
+            onSendPeppol={(inv) => handleUpdateInvoiceStatus(inv.id, 'peppol_delivered')}
           />
         )}
 
@@ -389,6 +459,7 @@ export function ClientWorkspace() {
       )}
 
     </div>
+    </Suspense>
   );
 }
 

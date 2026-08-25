@@ -9,6 +9,9 @@ import {
   UserCheck,
   Settings,
   BarChart3,
+  ShieldCheck,
+  FolderOpen,
+  Briefcase,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -137,7 +140,10 @@ export function defaultNavGroups(params: {
     taxCenter: string;
     banking: string;
     fiduciary: string;
+    documents: string;
+    payroll: string;
     reports: string;
+    audit: string;
     settings: string;
   };
 }): NavGroup[] {
@@ -194,11 +200,26 @@ export function defaultNavGroups(params: {
           label: labels.fiduciary,
           icon: <UserCheck className="w-4 h-4" />,
         },
+        {
+          id: 'documents',
+          label: labels.documents,
+          icon: <FolderOpen className="w-4 h-4" />,
+        },
+        {
+          id: 'payroll',
+          label: labels.payroll,
+          icon: <Briefcase className="w-4 h-4" />,
+        },
       ],
     },
     {
       label: 'Administration',
       items: [
+        {
+          id: 'audit',
+          label: labels.audit,
+          icon: <ShieldCheck className="w-4 h-4" />,
+        },
         {
           id: 'settings',
           label: labels.settings,

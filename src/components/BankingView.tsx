@@ -1,15 +1,26 @@
 import React, { useState } from 'react';
-import { 
-  Landmark, 
-  Upload, 
-  CheckCircle2, 
-  Check, 
+import {
+  Landmark,
+  Upload,
+  CheckCircle2,
   Zap,
   FileCode,
   Sparkles,
   RefreshCw,
-  Wand2
+  Wand2,
+  Search,
+  Link2,
+  ArrowRight,
 } from 'lucide-react';
+import { SplitView } from './ui/SplitView';
+import { Segmented } from './ui/Segmented';
+import { Card, CardBody, CardHeader } from './ui/Card';
+import { Badge, CodeChip, StatusDot } from './ui/Badge';
+import { Button } from './ui/Button';
+import { DataTable, Td, Th, Tr } from './ui/DataTable';
+import { Input } from './ui/Input';
+import { Money } from './ui/Money';
+import { formatDate } from '../utils/format';
 import type { BankTransaction, Invoice, PurchaseExpense } from '../types/accounting';
 import type { Language } from '../i18n/translations';
 import { translations } from '../i18n/translations';
@@ -38,18 +49,36 @@ export const BankingView: React.FC<BankingViewProps> = ({
   onAutoEncodeExpenses,
 }) => {
   const t = translations[lang].banking;
-  const [filterReconciled, setFilterReconciled] = useState<'all' | 'unreconciled' | 'reconciled'>('all');
+  const [queue, setQueue] = useState<'unreconciled' | 'reconciled' | 'all'>('unreconciled');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isCodaBoxSyncing, setIsCodaBoxSyncing] = useState(false);
   const [autoEncodeResult, setAutoEncodeResult] = useState<string | null>(null);
 
-  const filteredTransactions = transactions.filter(tx => {
-    if (filterReconciled === 'unreconciled') return !tx.reconciled;
-    if (filterReconciled === 'reconciled') return tx.reconciled;
-    return true;
+  const unreconciledCount = transactions.filter((t) => !t.reconciled).length;
+  const reconciledCount = transactions.filter((t) => t.reconciled).length;
+
+  const filteredTransactions = transactions.filter((tx) => {
+    const matchesQueue =
+      queue === 'all' ? true : queue === 'reconciled' ? tx.reconciled : !tx.reconciled;
+
+    const term = searchTerm.trim().toLowerCase();
+    const matchesSearch =
+      term.length === 0
+        ? true
+        : tx.counterpartyName.toLowerCase().includes(term) ||
+          tx.counterpartyIban.toLowerCase().includes(term) ||
+          (tx.structuredCommunication || '').toLowerCase().includes(term) ||
+          (tx.communication || '').toLowerCase().includes(term) ||
+          tx.statementNumber.toLowerCase().includes(term);
+
+    return matchesQueue && matchesSearch;
   });
 
-  const unreconciledCount = transactions.filter(t => !t.reconciled).length;
+  const selectedTx =
+    (selectedId ? transactions.find((t) => t.id === selectedId) : null) ||
+    (filteredTransactions.length > 0 ? filteredTransactions[0] : null);
 
   const handleAutoReconcileAll = () => {
     transactions.forEach(tx => {
@@ -158,71 +187,50 @@ export const BankingView: React.FC<BankingViewProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="flex items-center space-x-2">
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-              Standard Febelfin CODA / CAMT.053
-            </span>
-            <span className="text-xs text-slate-400">Rapprochement Bancaire Belge</span>
+          <div className="flex items-center gap-2 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+            <Badge tone="neutral">Febelfin CODA / CAMT.053</Badge>
+            <span>Rapprochement bancaire</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center mt-1">
-            <Landmark className="w-6 h-6 mr-2 text-amber-400" />
+          <h1 className="mt-1 text-[length:var(--text-lg)] font-semibold text-[var(--text-primary)] flex items-center gap-2">
+            <Landmark className="w-5 h-5 text-[var(--text-tertiary)]" />
             {t.title}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            {t.subtitle}
-          </p>
+          <p className="mt-1 text-[length:var(--text-xs)] text-[var(--text-tertiary)]">{t.subtitle}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <label className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-slate-600 transition flex items-center shadow-sm cursor-pointer">
-            <Upload className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
-            <span>Charger Fichier .cod / .xml</span>
+          <Button variant="secondary" className="relative overflow-hidden">
+            <Upload className="w-4 h-4" />
+            Charger
             <input
               type="file"
               accept=".cod,.txt,.xml"
               onChange={handleFileUpload}
-              className="hidden"
+              className="absolute inset-0 opacity-0 cursor-pointer"
+              title="Charger un fichier CODA (.cod) ou CAMT.053 (.xml)"
             />
-          </label>
-
-          <button
-            onClick={handleSimulateCodaImport}
-            className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-amber-500/40 transition flex items-center shadow-sm"
-          >
-            <Sparkles className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
-            <span>Démo Extrait Febelfin</span>
-          </button>
-
-          <button
-            onClick={handleCodaBoxSync}
-            disabled={isCodaBoxSyncing}
-            className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-emerald-950/40 hover:bg-emerald-900/40 text-emerald-300 border border-emerald-500/40 hover:border-emerald-500/60 transition flex items-center shadow-sm disabled:opacity-60"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 text-emerald-400 ${isCodaBoxSyncing ? 'animate-spin' : ''}`} />
-            <span>{isCodaBoxSyncing ? 'Synchronisation...' : 'Sync CodaBox (Isabel Group)'}</span>
-          </button>
-
-          <button
-            onClick={handleAutoEncode}
-            title="Classer automatiquement les dépenses (PCMN, TVA, déductibilité) depuis les mouvements débit"
-            className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-sky-950/40 hover:bg-sky-900/40 text-sky-300 border border-sky-500/40 hover:border-sky-500/60 transition flex items-center shadow-sm"
-          >
-            <Wand2 className="w-3.5 h-3.5 mr-1.5 text-sky-400" />
-            <span>Auto-encoder les dépenses</span>
-          </button>
-
-          <button
-            onClick={handleAutoReconcileAll}
-            className="px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 transition flex items-center"
-          >
-            <Zap className="w-3.5 h-3.5 mr-1.5 stroke-[2.5]" />
+          </Button>
+          <Button variant="secondary" onClick={handleSimulateCodaImport}>
+            <Sparkles className="w-4 h-4" />
+            Démo
+          </Button>
+          <Button variant="secondary" onClick={handleCodaBoxSync} disabled={isCodaBoxSyncing}>
+            <RefreshCw className={`w-4 h-4 ${isCodaBoxSyncing ? 'animate-spin' : ''}`} />
+            {isCodaBoxSyncing ? 'Sync…' : 'Sync CodaBox'}
+          </Button>
+          <Button variant="secondary" onClick={handleAutoEncode} title="Proposer l'encodage des dépenses à partir des débits">
+            <Wand2 className="w-4 h-4" />
+            Auto-encoder
+          </Button>
+          <Button variant="primary" onClick={handleAutoReconcileAll} title="Rapprocher automatiquement (OGM exact)">
+            <Zap className="w-4 h-4" />
             {t.matchAllBtn}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -232,164 +240,245 @@ export const BankingView: React.FC<BankingViewProps> = ({
         </div>
       )}
 
-      {/* Drag & Drop CODA Zone */}
-      <div
-        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-        onDragLeave={() => setIsDragOver(false)}
-        onDrop={handleDrop}
-        className={`border-2 border-dashed rounded-2xl p-4 text-center transition ${
-          isDragOver 
-            ? 'border-amber-500 bg-amber-500/10' 
-            : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'
-        }`}
-      >
-        <div className="flex items-center justify-center space-x-3 text-xs text-slate-300">
-          <FileCode className="w-5 h-5 text-amber-400" />
-          <span>
-            Glissez-déposez ici votre fichier d'extraits bancaires <strong>CODA Febelfin (.cod)</strong> ou <strong>CAMT.053 XML (PSD2)</strong>
-          </span>
-        </div>
-      </div>
+      <SplitView
+        left={
+          <div className="space-y-3">
+            {autoEncodeResult && (
+              <div className="rounded-[var(--radius-lg)] bg-[var(--state-info-bg)] border border-[var(--state-info-border)] px-3 py-2 text-[length:var(--text-xs)] text-[var(--state-info-text)]">
+                {autoEncodeResult}
+              </div>
+            )}
 
-      {/* Info Card / Reconciliation Status */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4">
-          <span className="text-slate-400 block">Total Mouvements bancaires</span>
-          <span className="text-xl font-bold font-mono text-white mt-1 block">
-            {transactions.length} opérations
-          </span>
-        </div>
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4">
-          <span className="text-slate-400 block">Réconciliés (Match OGM 100%)</span>
-          <span className="text-xl font-bold font-mono text-emerald-400 mt-1 block">
-            {transactions.filter(t => t.reconciled).length} opérations
-          </span>
-        </div>
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4">
-          <span className="text-slate-400 block">À rapprocher</span>
-          <span className="text-xl font-bold font-mono text-amber-400 mt-1 block">
-            {unreconciledCount} en attente
-          </span>
-        </div>
-      </div>
+            <Card>
+              <CardBody className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-2.5">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-[var(--text-tertiary)] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <Input
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Recherche (OGM, IBAN, contrepartie, extrait…)"
+                    className="pl-8"
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <Segmented
+                    value={queue}
+                    onChange={setQueue}
+                    items={[
+                      { value: 'unreconciled', label: 'À rapprocher', count: unreconciledCount },
+                      { value: 'reconciled', label: 'Réconciliés', count: reconciledCount },
+                      { value: 'all', label: 'Tous', count: transactions.length },
+                    ]}
+                  />
+                </div>
+              </CardBody>
+            </Card>
 
-      {/* Filter Tabs */}
-      <div className="flex bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs w-fit">
-        <button
-          onClick={() => setFilterReconciled('all')}
-          className={`px-3 py-1.5 rounded-lg font-semibold transition ${
-            filterReconciled === 'all' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          Tous ({transactions.length})
-        </button>
-        <button
-          onClick={() => setFilterReconciled('unreconciled')}
-          className={`px-3 py-1.5 rounded-lg font-semibold transition ${
-            filterReconciled === 'unreconciled' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          Non réconciliés ({unreconciledCount})
-        </button>
-        <button
-          onClick={() => setFilterReconciled('reconciled')}
-          className={`px-3 py-1.5 rounded-lg font-semibold transition ${
-            filterReconciled === 'reconciled' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          Réconciliés ({transactions.filter(t => t.reconciled).length})
-        </button>
-      </div>
-
-      {/* Transactions Table */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-850 text-slate-400 font-semibold border-b border-slate-800 uppercase text-[10px] tracking-wider">
-              <tr>
-                <th className="p-3.5 pl-5">{t.thStatement}</th>
-                <th className="p-3.5">{t.thCounterparty}</th>
-                <th className="p-3.5">{t.thCommunication}</th>
-                <th className="p-3.5 text-right">{t.thAmount}</th>
-                <th className="p-3.5 text-center">{t.thMatch}</th>
-                <th className="p-3.5 pr-5 text-right">Statut / Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {filteredTransactions.map((tx) => (
-                <tr key={tx.id} className="hover:bg-slate-800/40 transition">
-                  
-                  <td className="p-3.5 pl-5">
-                    <div>
-                      <span className="font-mono font-bold text-slate-200 block">Extrait #{tx.statementNumber}</span>
-                      <span className="text-[10px] text-slate-400">{tx.valutaDate}</span>
-                    </div>
-                  </td>
-
-                  <td className="p-3.5">
-                    <div>
-                      <span className="font-semibold text-white block">{tx.counterpartyName}</span>
-                      <span className="font-mono text-[10px] text-slate-400">{tx.counterpartyIban}</span>
-                    </div>
-                  </td>
-
-                  <td className="p-3.5">
-                    {tx.structuredCommunication ? (
-                      <span className="font-mono font-bold text-amber-300 bg-slate-950 px-2 py-0.5 rounded border border-amber-500/30 text-[11px] inline-block">
-                        {tx.structuredCommunication}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400 text-[11px] italic">
-                        {tx.communication}
-                      </span>
-                    )}
-                  </td>
-
-                  <td className="p-3.5 text-right">
-                    <span className={`font-mono font-bold text-sm ${
-                      tx.amount > 0 ? 'text-emerald-400' : 'text-slate-200'
-                    }`}>
-                      {tx.amount > 0 ? '+' : ''}{tx.amount.toFixed(2)} €
+            <Card>
+              <CardBody>
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragOver(true);
+                  }}
+                  onDragLeave={() => setIsDragOver(false)}
+                  onDrop={handleDrop}
+                  className={
+                    'border border-dashed rounded-[var(--radius-lg)] px-3 py-3 text-[length:var(--text-xs)] ' +
+                    (isDragOver
+                      ? 'border-[var(--border-focus)] bg-[var(--accent-soft)]'
+                      : 'border-[var(--border-default)] bg-[var(--bg-subtle)]')
+                  }
+                >
+                  <div className="flex items-center gap-2 text-[var(--text-secondary)]">
+                    <FileCode className="w-4 h-4 text-[var(--text-tertiary)]" />
+                    <span>
+                      Dépose ici un fichier <strong>CODA (.cod)</strong> ou <strong>CAMT.053 (.xml)</strong>
                     </span>
-                  </td>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
 
-                  <td className="p-3.5 text-center">
-                    {tx.matchedInvoiceId ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                        <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
-                        Facture #{tx.matchedInvoiceId.replace('inv-', '')}
-                      </span>
-                    ) : tx.matchedExpenseId ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-300 border border-blue-500/20">
-                        <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
-                        Dépense #{tx.matchedExpenseId}
-                      </span>
-                    ) : (
-                      <span className="text-slate-500 text-[10px]">—</span>
-                    )}
-                  </td>
+            <Card flush>
+              <CardHeader title="Transactions" description={`${filteredTransactions.length} élément(s)`} />
+              <DataTable stickyHeader>
+                <thead>
+                  <tr>
+                    <Th>{t.thStatement}</Th>
+                    <Th>{t.thCounterparty}</Th>
+                    <Th>{t.thCommunication}</Th>
+                    <Th align="right">{t.thAmount}</Th>
+                    <Th>{t.thMatch}</Th>
+                    <Th align="right">Action</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTransactions.map((tx) => {
+                    const active = selectedTx?.id === tx.id;
+                    const matchTone = tx.reconciled ? 'positive' : tx.matchedInvoiceId || tx.matchedExpenseId ? 'warning' : 'neutral';
 
-                  <td className="p-3.5 pr-5 text-right">
-                    {tx.reconciled ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                        <Check className="w-3 h-3 mr-1" /> RAPPROCHÉ
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => onReconcileTransaction(tx.id, tx.matchedInvoiceId, tx.matchedExpenseId)}
-                        className="inline-flex items-center px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-sm"
+                    return (
+                      <Tr
+                        key={tx.id}
+                        interactive
+                        onClick={() => setSelectedId(tx.id)}
+                        className={active ? 'bg-[var(--accent-soft)]' : undefined}
                       >
-                        Valider rapprochement
-                      </button>
+                        <Td>
+                          <div className="space-y-0.5">
+                            <div className="font-mono tnum text-[var(--text-primary)]">#{tx.statementNumber}</div>
+                            <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">{formatDate(tx.valutaDate)}</div>
+                          </div>
+                        </Td>
+                        <Td>
+                          <div className="min-w-0">
+                            <div className="font-medium text-[var(--text-primary)] truncate">{tx.counterpartyName}</div>
+                            <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)] font-mono tnum truncate">{tx.counterpartyIban}</div>
+                          </div>
+                        </Td>
+                        <Td>
+                          {tx.structuredCommunication ? (
+                            <CodeChip>{tx.structuredCommunication}</CodeChip>
+                          ) : (
+                            <span className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">{tx.communication}</span>
+                          )}
+                        </Td>
+                        <Td align="right">
+                          <Money value={tx.amount} mode="signed" tone={tx.amount > 0 ? 'positive' : 'default'} />
+                        </Td>
+                        <Td>
+                          {tx.matchedInvoiceId ? (
+                            <StatusDot tone={matchTone as any}>Facture</StatusDot>
+                          ) : tx.matchedExpenseId ? (
+                            <StatusDot tone={matchTone as any}>Dépense</StatusDot>
+                          ) : (
+                            <StatusDot tone="neutral">—</StatusDot>
+                          )}
+                        </Td>
+                        <Td align="right">
+                          {tx.reconciled ? (
+                            <StatusDot tone="positive">Rapproché</StatusDot>
+                          ) : (
+                            <Button
+                              variant="secondary"
+                              className="h-[var(--control-height-sm)] px-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onReconcileTransaction(tx.id, tx.matchedInvoiceId, tx.matchedExpenseId);
+                              }}
+                            >
+                              <Link2 className="w-3.5 h-3.5" />
+                              Valider
+                            </Button>
+                          )}
+                        </Td>
+                      </Tr>
+                    );
+                  })}
+                </tbody>
+              </DataTable>
+            </Card>
+          </div>
+        }
+        right={
+          <Card>
+            <CardHeader
+              title={selectedTx ? `${selectedTx.amount > 0 ? 'Crédit' : 'Débit'} ${selectedTx.currency}` : 'Sélection'}
+              description={selectedTx ? selectedTx.counterpartyName : 'Sélectionne une transaction'}
+              actions={
+                selectedTx ? (
+                  <div className="flex items-center gap-1">
+                    {!selectedTx.reconciled && (
+                      <Button
+                        variant="primary"
+                        className="h-[var(--control-height-sm)] px-2"
+                        onClick={() =>
+                          onReconcileTransaction(selectedTx.id, selectedTx.matchedInvoiceId, selectedTx.matchedExpenseId)
+                        }
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Rapprocher
+                      </Button>
                     )}
-                  </td>
+                  </div>
+                ) : null
+              }
+            />
+            <CardBody className="space-y-3">
+              {!selectedTx ? (
+                <div className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">Aucune transaction.</div>
+              ) : (
+                <>
+                  <div className="p-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+                    <div className="flex items-baseline justify-between">
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Montant</div>
+                      <Money value={selectedTx.amount} mode="signed" tone={selectedTx.amount > 0 ? 'positive' : 'default'} />
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-[length:var(--text-xs)]">
+                      <div className="p-2 rounded-[var(--radius-md)] bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
+                        <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Extrait</div>
+                        <div className="mt-0.5 font-mono tnum">#{selectedTx.statementNumber}</div>
+                      </div>
+                      <div className="p-2 rounded-[var(--radius-md)] bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
+                        <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Valuta</div>
+                        <div className="mt-0.5">{formatDate(selectedTx.valutaDate)}</div>
+                      </div>
+                      <div className="col-span-2 p-2 rounded-[var(--radius-md)] bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
+                        <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Communication</div>
+                        <div className="mt-0.5">
+                          {selectedTx.structuredCommunication ? (
+                            <CodeChip>{selectedTx.structuredCommunication}</CodeChip>
+                          ) : (
+                            <span className="text-[length:var(--text-xs)] text-[var(--text-secondary)]">{selectedTx.communication}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
 
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    <div className="mt-3">
+                      {selectedTx.reconciled ? (
+                        <StatusDot tone="positive">Rapproché</StatusDot>
+                      ) : selectedTx.matchedInvoiceId || selectedTx.matchedExpenseId ? (
+                        <StatusDot tone="warning">Match proposé</StatusDot>
+                      ) : (
+                        <StatusDot tone="neutral">Aucun match</StatusDot>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-subtle)]">
+                    <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Proposition</div>
+                    <div className="mt-1 text-[length:var(--text-xs)] text-[var(--text-secondary)]">
+                      {selectedTx.matchedInvoiceId
+                        ? `Facture liée : ${selectedTx.matchedInvoiceId}`
+                        : selectedTx.matchedExpenseId
+                          ? `Dépense liée : ${selectedTx.matchedExpenseId}`
+                          : 'Aucune. (À implémenter : suggestions par montant + nom)'}
+                    </div>
+                    {!selectedTx.reconciled && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <Button
+                          variant="secondary"
+                          className="h-[var(--control-height-sm)] px-2"
+                          onClick={() => onReconcileTransaction(selectedTx.id, selectedTx.matchedInvoiceId, selectedTx.matchedExpenseId)}
+                        >
+                          <ArrowRight className="w-3.5 h-3.5" />
+                          Valider
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                    Next : on ajoute un vrai matching guidé (suggestions factures/dépenses) et un mode manuel.
+                  </div>
+                </>
+              )}
+            </CardBody>
+          </Card>
+        }
+      />
 
     </div>
   );

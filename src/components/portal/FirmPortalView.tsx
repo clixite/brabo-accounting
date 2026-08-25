@@ -19,11 +19,16 @@ import type { Invoice, PurchaseExpense } from '../../server/types/db';
 import { SessionBar } from './SessionBar';
 import { FiscalStrategyPanel } from './FiscalStrategyPanel';
 import { FiscalRecommendationsPanel } from './FiscalRecommendationsPanel';
+import { CabinetDeclarationPanel } from './CabinetDeclarationPanel';
+import { tenantToCompanyProfile } from '../../services/tenantWorkspace';
+import { consolidateStatements } from '../../services/reporting';
 import type { ClientFinancialProfile } from '../../services/fiscalRecommender';
 
 interface ClientKpi {
   tenantId: string;
   turnover: number;
+  revenueExclVat: number;
+  expensesExclVat: number;
   vatCollected: number;
   vatDeductible: number;
   overdueCount: number;
@@ -67,7 +72,7 @@ function buildProfile(
  * scoped per tenant through the multi-tenant store.
  */
 export function FirmPortalView() {
-  const { user, tenants, grantSelfDeclaration, revokeSelfDeclaration } = useSession();
+  const { user, tenants, grantSelfDeclaration, revokeSelfDeclaration, enterClientWorkspace } = useSession();
   const [kpis, setKpis] = useState<Record<string, ClientKpi>>({});
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
@@ -94,6 +99,8 @@ export function FirmPortalView() {
         map[tenant.id] = {
           tenantId: tenant.id,
           turnover: invs.reduce((acc, i) => acc + i.totalInclVat, 0),
+          revenueExclVat: invs.reduce((acc, i) => acc + i.subtotalExclVat, 0),
+          expensesExclVat: expenses.items.reduce((acc, e) => acc + e.amountExclVat, 0),
           vatCollected: invs.reduce((acc, i) => acc + i.totalVatAmount, 0),
           vatDeductible: expenses.items.reduce((acc, e) => acc + e.deductibleVat, 0),
           overdueCount: invs.filter((i) => i.status === 'overdue').length,
@@ -106,6 +113,8 @@ export function FirmPortalView() {
         map[tenant.id] = {
           tenantId: tenant.id,
           turnover: 0,
+          revenueExclVat: 0,
+          expensesExclVat: 0,
           vatCollected: 0,
           vatDeductible: 0,
           overdueCount: 0,
@@ -170,6 +179,21 @@ export function FirmPortalView() {
     };
   }, [kpis]);
 
+  const consolidated = useMemo(
+    () =>
+      consolidateStatements(
+        tenants.map((t) => ({
+          name: t.name,
+          revenueExclVat: kpis[t.id]?.revenueExclVat ?? 0,
+          expensesExclVat: kpis[t.id]?.expensesExclVat ?? 0,
+          vatCollected: kpis[t.id]?.vatCollected ?? 0,
+          vatDeductible: kpis[t.id]?.vatDeductible ?? 0,
+          overdueAmount: kpis[t.id]?.overdueAmount ?? 0,
+        })),
+      ),
+    [tenants, kpis],
+  );
+
   const selectedTenant = tenants.find((t) => t.id === selected);
 
   return (
@@ -205,6 +229,52 @@ export function FirmPortalView() {
               <div className={`text-xl font-extrabold ${c.tone}`}>{c.value}</div>
             </div>
           ))}
+        </div>
+
+        {/* Rapports consolidés (P&L multi-clients) */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 mb-8">
+          <div className="flex items-center gap-2 text-xs font-bold text-amber-300 uppercase tracking-wide mb-4">
+            <TrendingUp className="h-4 w-4" /> Rapports consolidés (P&L multi-clients)
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
+            <div>
+              <div className="text-[10px] uppercase text-slate-500">CA HTVA</div>
+              <div className="font-mono font-bold text-slate-100">{eur.format(consolidated.totalRevenueExclVat)}</div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase text-slate-500">Charges HTVA</div>
+              <div className="font-mono font-bold text-slate-300">{eur.format(consolidated.totalExpensesExclVat)}</div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase text-slate-500">Résultat brut</div>
+              <div className={`font-mono font-bold ${consolidated.totalGrossResult >= 0 ? 'text-emerald-300' : 'text-red-400'}`}>
+                {eur.format(consolidated.totalGrossResult)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase text-slate-500">TVA nette</div>
+              <div className="font-mono font-bold text-sky-300">{eur.format(consolidated.totalVatNet)}</div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase text-slate-500">Impayés</div>
+              <div className="font-mono font-bold text-red-400">{eur.format(consolidated.totalOverdue)}</div>
+            </div>
+          </div>
+
+          {consolidated.rankedByRevenue.length > 0 && (
+            <div className="mt-4 border-t border-slate-800 pt-3">
+              <div className="text-[10px] uppercase text-slate-500 mb-2">Top clients par CA HTVA</div>
+              <div className="space-y-1.5">
+                {consolidated.rankedByRevenue.map((c, i) => (
+                  <div key={c.name} className="flex items-center gap-2 text-xs">
+                    <span className="w-4 text-slate-500 font-mono">{i + 1}.</span>
+                    <span className="flex-1 text-slate-300 truncate">{c.name}</span>
+                    <span className="font-mono text-slate-200">{eur.format(c.revenueExclVat)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -281,9 +351,16 @@ export function FirmPortalView() {
 
                         <button
                           onClick={() => openDetail(tenant.id)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 transition"
+                        >
+                          <FileText className="h-3.5 w-3.5" /> Dossier
+                        </button>
+
+                        <button
+                          onClick={() => enterClientWorkspace(tenant.id)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 hover:bg-amber-400 transition"
                         >
-                          <ArrowUpRight className="h-3.5 w-3.5" /> Dossier
+                          <ArrowUpRight className="h-3.5 w-3.5" /> Espace client
                         </button>
                       </div>
                     </div>
@@ -357,6 +434,14 @@ export function FirmPortalView() {
                               ))}
                             </div>
                           </div>
+                          </div>
+
+                          <div className="pt-4 border-t border-slate-800">
+                            <CabinetDeclarationPanel
+                              company={tenantToCompanyProfile(tenant)}
+                              invoices={detail?.invoices ?? []}
+                              expenses={detail?.expenses ?? []}
+                            />
                           </div>
 
                           <div className="pt-4 border-t border-slate-800">

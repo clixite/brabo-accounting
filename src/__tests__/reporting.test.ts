@@ -4,6 +4,7 @@ import {
   computeMonthlyRevenue,
   computeOverdueAging,
   computeProfitLoss,
+  consolidateStatements,
 } from '../services/reporting';
 import {
   INITIAL_BANK_TRANSACTIONS,
@@ -159,5 +160,29 @@ describe('Monthly revenue series', () => {
     const series = computeMonthlyRevenue(INITIAL_INVOICES, 2026);
     expect(series.length).toBe(12);
     expect(INITIAL_BANK_TRANSACTIONS.length).toBeGreaterThan(0);
+  });
+});
+
+describe('Consolidated statements (cabinet)', () => {
+  it('aggregates per-client statements and ranks by revenue', () => {
+    const consolidated = consolidateStatements([
+      { name: 'A', revenueExclVat: 10000, expensesExclVat: 4000, vatCollected: 2100, vatDeductible: 500, overdueAmount: 200 },
+      { name: 'B', revenueExclVat: 30000, expensesExclVat: 15000, vatCollected: 6300, vatDeductible: 2000, overdueAmount: 0 },
+    ]);
+
+    expect(consolidated.clientCount).toBe(2);
+    expect(consolidated.totalRevenueExclVat).toBeCloseTo(40000, 2);
+    expect(consolidated.totalExpensesExclVat).toBeCloseTo(19000, 2);
+    expect(consolidated.totalGrossResult).toBeCloseTo(21000, 2);
+    expect(consolidated.totalVatNet).toBeCloseTo(5900, 2); // (2100+6300) − (500+2000)
+    expect(consolidated.totalOverdue).toBeCloseTo(200, 2);
+    expect(consolidated.rankedByRevenue[0].name).toBe('B');
+  });
+
+  it('handles an empty client set', () => {
+    const consolidated = consolidateStatements([]);
+    expect(consolidated.clientCount).toBe(0);
+    expect(consolidated.totalRevenueExclVat).toBe(0);
+    expect(consolidated.rankedByRevenue).toEqual([]);
   });
 });

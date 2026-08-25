@@ -138,3 +138,44 @@ export function computeMonthlyRevenue(invoices: Invoice[], year: number): Monthl
     return { month: `${year}-${month}`, revenue: round2(revenue) };
   });
 }
+
+/** One client's summary for the cabinet's consolidated pilotage. */
+export interface ClientStatement {
+  name: string;
+  revenueExclVat: number;
+  expensesExclVat: number;
+  vatCollected: number;
+  vatDeductible: number;
+  overdueAmount: number;
+}
+
+/** Aggregated multi-client report (cabinet side). */
+export interface ConsolidatedReport {
+  clientCount: number;
+  totalRevenueExclVat: number;
+  totalExpensesExclVat: number;
+  totalGrossResult: number;
+  totalVatNet: number;
+  totalOverdue: number;
+  rankedByRevenue: { name: string; revenueExclVat: number }[];
+}
+
+/** Consolidates per-client statements into a single pilotage summary. */
+export function consolidateStatements(statements: ClientStatement[]): ConsolidatedReport {
+  const totalRevenueExclVat = round2(statements.reduce((a, s) => a + s.revenueExclVat, 0));
+  const totalExpensesExclVat = round2(statements.reduce((a, s) => a + s.expensesExclVat, 0));
+  const totalVatCollected = round2(statements.reduce((a, s) => a + s.vatCollected, 0));
+  const totalVatDeductible = round2(statements.reduce((a, s) => a + s.vatDeductible, 0));
+
+  return {
+    clientCount: statements.length,
+    totalRevenueExclVat,
+    totalExpensesExclVat,
+    totalGrossResult: round2(totalRevenueExclVat - totalExpensesExclVat),
+    totalVatNet: round2(totalVatCollected - totalVatDeductible),
+    totalOverdue: round2(statements.reduce((a, s) => a + s.overdueAmount, 0)),
+    rankedByRevenue: statements
+      .map((s) => ({ name: s.name, revenueExclVat: s.revenueExclVat }))
+      .sort((a, b) => b.revenueExclVat - a.revenueExclVat),
+  };
+}
