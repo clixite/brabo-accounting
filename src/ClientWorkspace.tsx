@@ -12,6 +12,7 @@ import { AppShell } from './components/shell/AppShell';
 import { validateInvoiceSchematron } from './services/schematronValidator';
 import type { ValidationReport } from './services/schematronValidator';
 import { SessionBar } from './components/portal/SessionBar';
+import { CommandPalette } from './components/CommandPalette';
 import { useSession } from './state/SessionContext';
 import { loadTenantLedger, replaceTenantLedger } from './services/tenantWorkspace';
 import { transmitInvoice } from './services/peppolService';
@@ -147,6 +148,19 @@ export function ClientWorkspace() {
   const [payconiqInvoice, setPayconiqInvoice] = useState<Invoice | null>(null);
   const [isViesModalOpen, setIsViesModalOpen] = useState(false);
   const [schematronReport, setSchematronReport] = useState<ValidationReport | null>(null);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+  // Global Cmd/Ctrl+K shortcut → command palette.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Handlers for Invoices
   const handleOpenNewInvoice = () => {
@@ -452,6 +466,20 @@ export function ClientWorkspace() {
           report={schematronReport}
         />
       )}
+
+      <CommandPalette
+        open={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        invoices={invoices}
+        clients={MOCK_CLIENTS}
+        lang={lang}
+        company={company}
+        onNavigate={(tab) => setCurrentTab(tab)}
+        onOpenInvoice={handleEditInvoice}
+        onNewInvoice={handleOpenNewInvoice}
+        onScanExpense={() => setIsExpenseModalOpen(true)}
+        onOpenOgmTool={() => setIsOgmModalOpen(true)}
+      />
 
     </div>
     </Suspense>
