@@ -305,14 +305,15 @@ export function ClientWorkspace() {
             invoices={invoices}
             purchases={purchases}
             transactions={transactions}
+            lang={lang}
           />
         )}
 
-        {currentTab === 'audit' && <AuditTrailView />}
+        {currentTab === 'audit' && <AuditTrailView lang={lang} />}
 
-        {currentTab === 'documents' && <DocumentsView />}
+        {currentTab === 'documents' && <DocumentsView lang={lang} />}
 
-        {currentTab === 'payroll' && <PayrollView />}
+        {currentTab === 'payroll' && <PayrollView lang={lang} />}
 
         {currentTab === 'invoicing' && (
           <InvoicingView

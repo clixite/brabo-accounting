@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { FileText, FolderOpen, Loader2, Plus, Trash2, Upload } from 'lucide-react';
 import { dbStore } from '../server/services/dbStore';
 import { useSession } from '../state/SessionContext';
+import type { Language } from '../i18n/translations';
+import { translations } from '../i18n/translations';
 import type { SharedDocument } from '../server/types/db';
 
 const CATEGORIES = ['Déclarations', 'Contrats', 'Reçus', 'Pièces bancaires', 'Correspondance', 'Autre'];
@@ -17,8 +19,9 @@ const fmtSize = (bytes: number): string => {
  * documents through a single tenant-scoped store. Upload is metadata-only in
  * the demo (binary → object storage in production).
  */
-export function DocumentsView() {
+export function DocumentsView({ lang }: { lang: Language }) {
   const { activeTenant, user } = useSession();
+  const t = translations[lang].documents;
   const [documents, setDocuments] = useState<SharedDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -85,9 +88,9 @@ export function DocumentsView() {
         <div className="flex items-center gap-2 text-amber-400 text-xs font-bold tracking-wider uppercase mb-1">
           <FolderOpen className="h-4 w-4" /> GED partagée
         </div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Pièces & documents</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{t.title}</h1>
         <p className="text-xs sm:text-sm text-slate-400 mt-1">
-          Registre partagé entre votre société et votre cabinet comptable (séparé par tenant).
+          {t.subtitle} (séparé par tenant).
         </p>
       </div>
 

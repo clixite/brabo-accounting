@@ -1,12 +1,21 @@
 import React, { useState } from 'react';
-import { 
-  Receipt, 
-  UploadCloud, 
-  Sparkles, 
-  Search, 
-  CheckCircle2, 
-  Trash2
+import {
+  Receipt,
+  UploadCloud,
+  Sparkles,
+  Search,
+  Trash2,
 } from 'lucide-react';
+import { SplitView } from './ui/SplitView';
+import { Segmented } from './ui/Segmented';
+import { Card, CardBody, CardHeader } from './ui/Card';
+import { Badge, CodeChip, StatusDot } from './ui/Badge';
+import { Button, IconButton } from './ui/Button';
+import { DataTable, Td, Th, Tr } from './ui/DataTable';
+import { Input } from './ui/Input';
+import { Select } from './ui/Select';
+import { Money } from './ui/Money';
+import { formatDate } from '../utils/format';
 import type { PurchaseExpense } from '../types/accounting';
 import type { Language } from '../i18n/translations';
 import { translations } from '../i18n/translations';
@@ -25,11 +34,13 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   onDeleteExpense,
 }) => {
   const t = translations[lang].expenses;
+  const [queue, setQueue] = useState<'todo' | 'all' | 'paid'>('todo');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const filteredPurchases = purchases.filter((exp) => {
-    const matchesSearch = 
+    const matchesSearch =
       exp.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       exp.supplierBce.toLowerCase().includes(searchTerm.toLowerCase()) ||
       exp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -37,219 +48,305 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
     const matchesCategory = categoryFilter === 'all' || exp.category.includes(categoryFilter);
 
-    return matchesSearch && matchesCategory;
+    const matchesQueue =
+      queue === 'all'
+        ? true
+        : queue === 'paid'
+          ? exp.status === 'paid'
+          : // todo
+            exp.status === 'pending' || exp.status === 'approved';
+
+    return matchesSearch && matchesCategory && matchesQueue;
   });
 
-  const totalSpent = purchases.reduce((acc, p) => acc + p.amountInclVat, 0);
-  const totalDeductibleBase = purchases.reduce((acc, p) => acc + p.deductibleAmount, 0);
-  const totalDeductibleVat = purchases.reduce((acc, p) => acc + p.deductibleVat, 0);
+  const selectedExpense =
+    (selectedId ? purchases.find((p) => p.id === selectedId) : null) ||
+    (filteredPurchases.length > 0 ? filteredPurchases[0] : null);
+
+  const pendingCount = purchases.filter((p) => p.status === 'pending' || p.status === 'approved').length;
+  const paidCount = purchases.filter((p) => p.status === 'paid').length;
 
   return (
-    <div className="space-y-6">
-      
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center">
-            <Receipt className="w-6 h-6 mr-2 text-amber-400" />
+          <div className="flex items-center gap-2 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+            <Badge tone="neutral">OCR + PCMN + Déductibilité</Badge>
+            <span>Achats & dépenses</span>
+          </div>
+          <h1 className="mt-1 text-[length:var(--text-lg)] font-semibold text-[var(--text-primary)] flex items-center gap-2">
+            <Receipt className="w-5 h-5 text-[var(--text-tertiary)]" />
             {t.title}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            {t.subtitle}
-          </p>
         </div>
 
-        <button
-          onClick={onScanExpense}
-          className="px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 transition flex items-center self-start sm:self-auto"
-        >
-          <Sparkles className="w-3.5 h-3.5 mr-1.5 stroke-[2.5]" />
+        <Button variant="primary" onClick={onScanExpense}>
+          <Sparkles className="w-4 h-4" />
           {t.scanButton}
-        </button>
+        </Button>
       </div>
 
-      {/* Smart OCR Dropzone */}
-      <div 
-        onClick={onScanExpense}
-        className="cursor-pointer border-2 border-dashed border-slate-700 hover:border-amber-500/60 bg-slate-900/60 hover:bg-slate-850/80 rounded-2xl p-6 text-center transition group shadow-lg"
-      >
-        <div className="max-w-md mx-auto space-y-2">
-          <div className="w-12 h-12 rounded-full bg-amber-500/10 text-amber-400 mx-auto flex items-center justify-center group-hover:scale-110 transition duration-200">
-            <UploadCloud className="w-6 h-6" />
-          </div>
-          <h3 className="text-sm font-bold text-white">{t.dropzoneTitle}</h3>
-          <p className="text-xs text-slate-400">{t.dropzoneSubtitle}</p>
-          <div className="flex items-center justify-center space-x-2 pt-2 text-[10px] text-amber-400/80 font-mono">
-            <span>✓ OCR Français / Néerlandais</span>
-            <span>•</span>
-            <span>✓ Vérification BCE Mod97</span>
-            <span>•</span>
-            <span>✓ Règles déductibilité SPF Finances</span>
-          </div>
-        </div>
-      </div>
+      <SplitView
+        left={
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Segmented
+                value={queue}
+                onChange={setQueue}
+                items={[
+                  { value: 'todo', label: 'À valider', count: pendingCount },
+                  { value: 'paid', label: 'Payées', count: paidCount },
+                  { value: 'all', label: 'Toutes', count: purchases.length },
+                ]}
+              />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4">
-          <span className="text-slate-400 font-medium block">Total Dépenses TVAC</span>
-          <span className="text-xl font-bold font-mono text-white mt-1 block">
-            {totalSpent.toLocaleString('fr-BE', { minimumFractionDigits: 2 })} €
-          </span>
-        </div>
+              <Badge tone="neutral">{filteredPurchases.length}</Badge>
+            </div>
 
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4">
-          <span className="text-slate-400 font-medium block">Base Déductible Fiscale (ISOC/IPP)</span>
-          <span className="text-xl font-bold font-mono text-emerald-400 mt-1 block">
-            {totalDeductibleBase.toLocaleString('fr-BE', { minimumFractionDigits: 2 })} €
-          </span>
-        </div>
+            <Card>
+              <CardBody className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-2.5">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-[var(--text-tertiary)] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <Input
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Recherche (fournisseur, BCE, PCMN, libellé…)"
+                    className="pl-8"
+                  />
+                </div>
+                <Select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+                  <option value="all">Toutes les catégories</option>
+                  <option value="Télécom">Télécom</option>
+                  <option value="Véhicule">Véhicule</option>
+                  <option value="représentation">Restaurant</option>
+                  <option value="Matériel">Matériel</option>
+                  <option value="Sociales">Sociales</option>
+                </Select>
+              </CardBody>
+            </Card>
 
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4">
-          <span className="text-slate-400 font-medium block">TVA Déductible Récupérable (Grille 59)</span>
-          <span className="text-xl font-bold font-mono text-amber-400 mt-1 block">
-            {totalDeductibleVat.toLocaleString('fr-BE', { minimumFractionDigits: 2 })} €
-          </span>
-        </div>
-      </div>
+            <Card>
+              <CardBody>
+                <button
+                  type="button"
+                  onClick={onScanExpense}
+                  className="w-full text-left border border-dashed rounded-[var(--radius-lg)] px-3 py-3 bg-[var(--bg-subtle)] hover:bg-[var(--bg-hover)] border-[var(--border-default)] transition"
+                >
+                  <div className="flex items-center gap-2">
+                    <UploadCloud className="w-4 h-4 text-[var(--text-tertiary)]" />
+                    <div>
+                      <div className="text-[length:var(--text-xs)] font-medium text-[var(--text-primary)]">
+                        {t.dropzoneTitle}
+                      </div>
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                        {t.dropzoneSubtitle}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-2 flex items-center gap-2 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                    <StatusDot tone="info">OCR FR/NL</StatusDot>
+                    <StatusDot tone="info">BCE Mod97</StatusDot>
+                    <StatusDot tone="info">Déductibilité</StatusDot>
+                  </div>
+                </button>
+              </CardBody>
+            </Card>
 
-      {/* Search and Filters */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Rechercher par fournisseur, n° BCE ou compte PCMN..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
-          />
-        </div>
+            <Card flush>
+              <CardHeader title="Dépenses" description={`${filteredPurchases.length} élément(s)`} />
+              <DataTable stickyHeader>
+                <thead>
+                  <tr>
+                    <Th>{t.thSupplier}</Th>
+                    <Th>{t.thPcmn}</Th>
+                    <Th>Date / Réf.</Th>
+                    <Th align="right">{t.thBase}</Th>
+                    <Th align="right">{t.thVat}</Th>
+                    <Th align="right">{t.thDeductibleAmount}</Th>
+                    <Th>{t.thStatus}</Th>
+                    <Th align="right">Actions</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredPurchases.map((exp) => {
+                    const active = selectedExpense?.id === exp.id;
+                    const tone =
+                      exp.status === 'paid'
+                        ? 'positive'
+                        : exp.status === 'pending'
+                          ? 'warning'
+                          : exp.status === 'approved'
+                            ? 'info'
+                            : 'neutral';
 
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
-        >
-          <option value="all">Toutes les catégories</option>
-          <option value="Télécom">Télécom & Abonnements</option>
-          <option value="Véhicule">Véhicules & Déplacements</option>
-          <option value="représentation">Restaurant & Réception</option>
-          <option value="Matériel">Matériel & Investissements</option>
-          <option value="Sociales">Cotisations Sociales</option>
-        </select>
-      </div>
-
-      {/* Expenses Table */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-850 text-slate-400 font-semibold border-b border-slate-800 uppercase text-[10px] tracking-wider">
-              <tr>
-                <th className="p-3.5 pl-5">{t.thSupplier}</th>
-                <th className="p-3.5">{t.thPcmn}</th>
-                <th className="p-3.5">Date / Référence</th>
-                <th className="p-3.5 text-right">{t.thBase}</th>
-                <th className="p-3.5 text-right">{t.thVat}</th>
-                <th className="p-3.5 text-center">{t.thDeductibility}</th>
-                <th className="p-3.5 text-right">{t.thDeductibleAmount}</th>
-                <th className="p-3.5 text-center">{t.thStatus}</th>
-                <th className="p-3.5 pr-5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {filteredPurchases.map((exp) => (
-                <tr key={exp.id} className="hover:bg-slate-800/40 transition">
+                    return (
+                      <Tr
+                        key={exp.id}
+                        interactive
+                        onClick={() => setSelectedId(exp.id)}
+                        className={active ? 'bg-[var(--accent-soft)]' : undefined}
+                      >
                   
-                  {/* Supplier & BCE */}
-                  <td className="p-3.5 pl-5">
-                    <div>
-                      <span className="font-semibold text-white block">{exp.supplierName}</span>
-                      <span className="font-mono text-[10px] text-slate-400">{exp.supplierBce}</span>
-                    </div>
-                  </td>
-
-                  {/* PCMN & Category */}
-                  <td className="p-3.5">
-                    <div>
-                      <span className="font-mono font-bold text-amber-300 text-[11px] block">
-                        {exp.pcmnAccount}
-                      </span>
-                      <span className="text-[10px] text-slate-400 truncate max-w-[140px] block">
-                        {exp.category}
-                      </span>
-                    </div>
-                  </td>
-
-                  {/* Date & Invoice No */}
-                  <td className="p-3.5">
-                    <div>
-                      <span className="text-slate-200 block">{exp.date}</span>
-                      <span className="text-[10px] text-slate-500 block font-mono">{exp.invoiceNumber}</span>
-                    </div>
-                  </td>
-
-                  {/* Base HTVA */}
-                  <td className="p-3.5 text-right font-mono font-semibold text-slate-200">
-                    {exp.amountExclVat.toFixed(2)} €
-                  </td>
-
-                  {/* VAT */}
-                  <td className="p-3.5 text-right">
-                    <span className="font-mono font-semibold text-amber-400 block">
-                      {exp.vatAmount.toFixed(2)} €
-                    </span>
-                    <span className="text-[10px] text-slate-500">
-                      ({exp.vatRate}%)
-                    </span>
-                  </td>
-
-                  {/* Deductibility */}
-                  <td className="p-3.5 text-center">
-                    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${
-                      exp.deductibilityRate === 100 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                      exp.deductibilityRate === 75 ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
-                      exp.deductibilityRate === 50 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
-                      'bg-red-500/20 text-red-300 border border-red-500/30'
-                    }`}>
-                      {exp.deductibilityRate}%
-                    </span>
-                  </td>
-
-                  {/* Deductible Amount */}
-                  <td className="p-3.5 text-right font-mono font-bold text-emerald-400">
-                    {exp.deductibleAmount.toFixed(2)} €
-                    <span className="block text-[10px] text-slate-400 font-normal">
-                      TVA: {exp.deductibleVat.toFixed(2)} €
-                    </span>
-                  </td>
-
-                  {/* Status */}
-                  <td className="p-3.5 text-center">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
-                      <CheckCircle2 className="w-2.5 h-2.5 mr-1 text-emerald-400" />
-                      {exp.status.toUpperCase()}
-                    </span>
-                  </td>
-
-                  {/* Actions */}
-                  <td className="p-3.5 pr-5 text-right">
-                    <button
-                      onClick={() => onDeleteExpense(exp.id)}
-                      className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-lg transition"
-                      title="Supprimer"
+                        <Td>
+                          <div className="min-w-0">
+                            <div className="font-medium text-[var(--text-primary)] truncate">{exp.supplierName}</div>
+                            <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)] font-mono tnum">{exp.supplierBce}</div>
+                          </div>
+                        </Td>
+                        <Td>
+                          <div className="space-y-0.5">
+                            <div className="font-mono tnum text-[var(--text-primary)]">{exp.pcmnAccount}</div>
+                            <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)] truncate max-w-[180px]">{exp.category}</div>
+                          </div>
+                        </Td>
+                        <Td>
+                          <div className="space-y-0.5">
+                            <div>{formatDate(exp.date)}</div>
+                            <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)] font-mono tnum">{exp.invoiceNumber}</div>
+                          </div>
+                        </Td>
+                        <Td align="right"><Money value={exp.amountExclVat} /></Td>
+                        <Td align="right">
+                          <div className="space-y-0.5">
+                            <Money value={exp.vatAmount} tone="muted" />
+                            <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">{exp.vatRate}%</div>
+                          </div>
+                        </Td>
+                        <Td align="right">
+                          <div className="space-y-0.5">
+                            <Money value={exp.deductibleAmount} />
+                            <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                              Déduct. {exp.deductibilityRate}%
+                            </div>
+                          </div>
+                        </Td>
+                        <Td>
+                          <StatusDot tone={tone as any}>{exp.status.toUpperCase()}</StatusDot>
+                        </Td>
+                        <Td align="right">
+                          <IconButton
+                            label="Supprimer"
+                            tone="danger"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteExpense(exp.id);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </IconButton>
+                        </Td>
+                      </Tr>
+                    );
+                  })}
+                </tbody>
+              </DataTable>
+            </Card>
+          </div>
+        }
+        right={
+          <Card>
+            <CardHeader
+              title={selectedExpense ? selectedExpense.supplierName : 'Sélection'}
+              description={selectedExpense ? selectedExpense.description : 'Sélectionne une dépense'}
+              actions={
+                selectedExpense ? (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="secondary"
+                      className="h-[var(--control-height-sm)] px-2"
+                      onClick={() => onScanExpense()}
+                      title="Scanner/ajouter une autre dépense"
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </td>
+                      <UploadCloud className="w-3.5 h-3.5" />
+                      Scanner
+                    </Button>
+                  </div>
+                ) : null
+              }
+            />
+            <CardBody className="space-y-3">
+              {!selectedExpense ? (
+                <div className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">Aucune dépense.</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-2 text-[length:var(--text-xs)]">
+                    <div className="p-2 rounded-[var(--radius-md)] bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Date</div>
+                      <div className="mt-0.5">{formatDate(selectedExpense.date)}</div>
+                    </div>
+                    <div className="p-2 rounded-[var(--radius-md)] bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Échéance</div>
+                      <div className="mt-0.5">{formatDate(selectedExpense.dueDate)}</div>
+                    </div>
+                    <div className="col-span-2 p-2 rounded-[var(--radius-md)] bg-[var(--bg-subtle)] border border-[var(--border-subtle)]">
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">BCE</div>
+                      <div className="mt-0.5"><CodeChip>{selectedExpense.supplierBce}</CodeChip></div>
+                    </div>
+                  </div>
 
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                  <div className="p-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-1.5">
+                    <div className="flex items-baseline justify-between">
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">TVAC</div>
+                      <Money value={selectedExpense.amountInclVat} />
+                    </div>
+                    <div className="flex items-baseline justify-between">
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">HTVA</div>
+                      <span className="font-mono tnum text-[length:var(--text-xs)] text-[var(--text-secondary)]">
+                        {selectedExpense.amountExclVat.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between">
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">TVA</div>
+                      <span className="font-mono tnum text-[length:var(--text-xs)] text-[var(--text-secondary)]">
+                        {selectedExpense.vatAmount.toFixed(2)} ({selectedExpense.vatRate}%)
+                      </span>
+                    </div>
+                    <div className="mt-2">
+                      <StatusDot tone={selectedExpense.deductibilityRate === 0 ? 'critical' : selectedExpense.deductibilityRate < 100 ? 'warning' : 'positive'}>
+                        Déductibilité {selectedExpense.deductibilityRate}%
+                      </StatusDot>
+                    </div>
+                  </div>
 
+                  {selectedExpense.ocrExtractedData && (
+                    <div className="p-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-subtle)]">
+                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Qualité OCR</div>
+                      <div className="mt-1 space-y-1 text-[length:var(--text-xs)]">
+                        <div className="flex items-center justify-between">
+                          <span>Données fournisseur</span>
+                          <StatusDot tone={selectedExpense.ocrExtractedData.supplierRecognized ? 'positive' : 'warning'}>
+                            {selectedExpense.ocrExtractedData.supplierRecognized ? 'OK' : 'À vérifier'}
+                          </StatusDot>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>BCE validée</span>
+                          <StatusDot tone={selectedExpense.ocrExtractedData.bceValidated ? 'positive' : 'critical'}>
+                            {selectedExpense.ocrExtractedData.bceValidated ? 'OK' : 'KO'}
+                          </StatusDot>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>TVA détectée</span>
+                          <span className="font-mono tnum">{selectedExpense.ocrExtractedData.vatDetected.toFixed(2)}</span>
+                        </div>
+                        {typeof selectedExpense.ocrConfidence === 'number' && (
+                          <div className="flex items-center justify-between">
+                            <span>Confiance</span>
+                            <span className="font-mono tnum">{Math.round(selectedExpense.ocrConfidence * 100)}%</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                    Next : ajout d'une action “Valider / Approuver” + export fiduciaire.
+                  </div>
+                </>
+              )}
+            </CardBody>
+          </Card>
+        }
+      />
     </div>
   );
 };

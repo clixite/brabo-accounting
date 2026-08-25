@@ -1,5 +1,7 @@
 import { BarChart3, CircleDollarSign, Landmark, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import type { BankTransaction, CompanyProfile, Invoice, PurchaseExpense } from '../types/accounting';
+import type { Language } from '../i18n/translations';
+import { translations } from '../i18n/translations';
 import {
   computeCashFlow,
   computeMonthlyRevenue,
@@ -14,13 +16,15 @@ interface ReportsViewProps {
   invoices: Invoice[];
   purchases: PurchaseExpense[];
   transactions: BankTransaction[];
+  lang: Language;
 }
 
 /**
  * Client financial reporting: P&L, cash flow, VAT position and overdue aging —
  * computed live from the ledger, no spreadsheet needed.
  */
-export function ReportsView({ company, invoices, purchases, transactions }: ReportsViewProps) {
+export function ReportsView({ company, invoices, purchases, transactions, lang }: ReportsViewProps) {
+  const t = translations[lang].reports;
   const pl = computeProfitLoss(invoices, purchases);
   const cash = computeCashFlow(transactions);
   const aging = computeOverdueAging(invoices);
@@ -33,19 +37,19 @@ export function ReportsView({ company, invoices, purchases, transactions }: Repo
         <div className="flex items-center gap-2 text-amber-400 text-xs font-bold tracking-wider uppercase mb-1">
           <BarChart3 className="h-4 w-4" /> Reporting & pilotage
         </div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Rapports financiers</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{t.title}</h1>
         <p className="text-xs sm:text-sm text-slate-400 mt-1">
-          {company.name} · Exercice 2026 · calculés en temps réel depuis vos encodages
+          {company.name} · {t.subtitle}
         </p>
       </div>
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Chiffre d\'affaires HTVA', value: eur.format(pl.revenueExclVat), icon: TrendingUp, tone: 'text-amber-300' },
-          { label: 'Charges HTVA', value: eur.format(pl.expensesExclVat), icon: TrendingDown, tone: 'text-slate-200' },
-          { label: 'Résultat brut', value: eur.format(pl.grossResult), icon: CircleDollarSign, tone: pl.grossResult >= 0 ? 'text-emerald-300' : 'text-red-400' },
-          { label: 'TVA nette (collectée − déductible)', value: eur.format(pl.vatNet), icon: Landmark, tone: pl.vatNet >= 0 ? 'text-emerald-300' : 'text-sky-300' },
+          { label: t.revenue, value: eur.format(pl.revenueExclVat), icon: TrendingUp, tone: 'text-amber-300' },
+          { label: t.expenses, value: eur.format(pl.expensesExclVat), icon: TrendingDown, tone: 'text-slate-200' },
+          { label: t.grossResult, value: eur.format(pl.grossResult), icon: CircleDollarSign, tone: pl.grossResult >= 0 ? 'text-emerald-300' : 'text-red-400' },
+          { label: t.vatNet, value: eur.format(pl.vatNet), icon: Landmark, tone: pl.vatNet >= 0 ? 'text-emerald-300' : 'text-sky-300' },
         ].map((c) => (
           <div key={c.label} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
             <div className="flex items-center gap-2 text-slate-400 text-[11px] uppercase tracking-wide mb-2">
@@ -59,7 +63,7 @@ export function ReportsView({ company, invoices, purchases, transactions }: Repo
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Monthly revenue chart */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-          <h3 className="text-sm font-bold text-slate-200 mb-4">Chiffre d'affaires mensuel (HTVA)</h3>
+          <h3 className="text-sm font-bold text-slate-200 mb-4">{t.monthlyRevenue}</h3>
           <div className="flex items-end gap-1.5 h-40">
             {monthly.map((m) => (
               <div key={m.month} className="flex-1 flex flex-col items-center gap-1 group">
@@ -77,7 +81,7 @@ export function ReportsView({ company, invoices, purchases, transactions }: Repo
         {/* Cash flow */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
           <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-amber-400" /> Flux de trésorerie
+            <Wallet className="h-4 w-4 text-amber-400" /> {t.cashFlow}
           </h3>
           <div className="grid grid-cols-3 gap-3 text-center">
             <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
@@ -98,7 +102,7 @@ export function ReportsView({ company, invoices, purchases, transactions }: Repo
 
           {/* Overdue aging */}
           <div>
-            <h4 className="text-[11px] uppercase text-slate-500 mb-2">Vieillissement des créances</h4>
+            <h4 className="text-[11px] uppercase text-slate-500 mb-2">{t.aging}</h4>
             <div className="space-y-1.5">
               {aging.buckets.map((b) => (
                 <div key={b.key} className="flex items-center gap-2 text-xs">

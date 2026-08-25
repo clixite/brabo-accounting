@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Loader2, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { dbStore } from '../server/services/dbStore';
 import { useSession } from '../state/SessionContext';
+import type { Language } from '../i18n/translations';
+import { translations } from '../i18n/translations';
 import type { AuditLog, AuditChainVerification } from '../server/types/db';
 
 const ACTION_LABELS: Record<string, string> = {
@@ -29,8 +31,9 @@ const ACTION_LABELS: Record<string, string> = {
  * visible: every financial mutation is recorded and the SHA-256 chain integrity
  * is verified live.
  */
-export function AuditTrailView() {
+export function AuditTrailView({ lang }: { lang: Language }) {
   const { activeTenant, user } = useSession();
+  const t = translations[lang].audit;
   const [entries, setEntries] = useState<AuditLog[]>([]);
   const [verification, setVerification] = useState<AuditChainVerification | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,9 +64,9 @@ export function AuditTrailView() {
         <div className="flex items-center gap-2 text-amber-400 text-xs font-bold tracking-wider uppercase mb-1">
           <ShieldCheck className="h-4 w-4" /> Sécurité & traçabilité
         </div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Piste d'audit</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{t.title}</h1>
         <p className="text-xs sm:text-sm text-slate-400 mt-1">
-          Journal immuable, chaîné par hash SHA-256 — chaque écriture financière est horodatée et attribuée.
+          {t.subtitle} — chaque écriture financière est horodatée et attribuée.
         </p>
       </div>
 
@@ -83,7 +86,7 @@ export function AuditTrailView() {
           )}
           <div>
             <div className={`text-sm font-bold ${verification.valid ? 'text-emerald-300' : 'text-red-300'}`}>
-              {verification.valid ? 'Chaîne d\'audit intègre' : 'Chaîne d\'audit corrompue'}
+              {verification.valid ? t.chainValid : t.chainBroken}
             </div>
             <div className="text-xs text-slate-400">
               {verification.entriesChecked} entrée(s) vérifiée(s) · algorithme SHA-256 · {activeTenant?.name ?? 'tenant'}

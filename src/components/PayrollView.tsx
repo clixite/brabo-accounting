@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Briefcase, Wallet, TrendingDown, TrendingUp } from 'lucide-react';
+import type { Language } from '../i18n/translations';
+import { translations } from '../i18n/translations';
 import { computePayroll } from '../services/payroll';
 
 const eur = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' });
@@ -8,7 +10,8 @@ const eur = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' 
  * Client-side Belgian payroll simulator (brut → net + coût employeur).
  * Planning tool — not a substitute for a certified social secretariat.
  */
-export function PayrollView() {
+export function PayrollView({ lang }: { lang: Language }) {
+  const t = translations[lang].payroll;
   const [gross, setGross] = useState(3500);
   const payroll = computePayroll(gross);
 
@@ -18,15 +21,13 @@ export function PayrollView() {
         <div className="flex items-center gap-2 text-amber-400 text-xs font-bold tracking-wider uppercase mb-1">
           <Briefcase className="h-4 w-4" /> Paie & charges sociales
         </div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Simulateur de salaire</h1>
-        <p className="text-xs sm:text-sm text-slate-400 mt-1">
-          Brut → net + coût employeur · barèmes belges simplifiés 2026 (ONSS 13,07 %, précompte progressif).
-        </p>
+        <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{t.title}</h1>
+        <p className="text-xs sm:text-sm text-slate-400 mt-1">{t.subtitle}</p>
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
         <div>
-          <label className="text-xs font-bold text-slate-200">Salaire brut mensuel (€)</label>
+          <label className="text-xs font-bold text-slate-200">{t.gross}</label>
           <div className="flex items-center gap-3 mt-2">
             <input
               type="number"
@@ -60,7 +61,7 @@ export function PayrollView() {
             <div className="font-mono font-bold text-red-400">{eur.format(payroll.withholdingTax)}</div>
           </div>
           <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-lg p-3">
-            <div className="text-[10px] uppercase text-emerald-400">Net mensuel</div>
+            <div className="text-[10px] uppercase text-emerald-400">{t.net}</div>
             <div className="font-mono font-black text-emerald-300">{eur.format(payroll.netMonthly)}</div>
           </div>
           <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
@@ -68,7 +69,7 @@ export function PayrollView() {
             <div className="font-mono font-bold text-red-400">{eur.format(payroll.employerOnss)}</div>
           </div>
           <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
-            <div className="text-[10px] uppercase text-slate-500">Coût employeur total</div>
+            <div className="text-[10px] uppercase text-slate-500">{t.employerCost}</div>
             <div className="font-mono font-bold text-amber-300">{eur.format(payroll.employerTotalCost)}</div>
           </div>
         </div>
