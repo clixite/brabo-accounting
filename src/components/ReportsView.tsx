@@ -1,4 +1,4 @@
-import { BarChart3, CircleDollarSign, Landmark, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
+import { BarChart3, CircleDollarSign, Download, Landmark, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import type { BankTransaction, CompanyProfile, Invoice, PurchaseExpense } from '../types/accounting';
 import type { Language } from '../i18n/translations';
 import { translations } from '../i18n/translations';
@@ -10,6 +10,8 @@ import {
 } from '../services/reporting';
 import { Card, CardHeader, CardBody } from './ui/Card';
 import { Badge } from './ui/Badge';
+import { Button } from './ui/Button';
+import { toCsv, downloadCsv } from '../utils/csv';
 
 const eur = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' });
 
@@ -33,6 +35,31 @@ export function ReportsView({ company, invoices, purchases, transactions, lang }
   const monthly = computeMonthlyRevenue(invoices, 2026);
   const maxMonthly = Math.max(1, ...monthly.map((m) => m.revenue));
 
+  const handleExportCsv = () => {
+    const date = new Date().toISOString().slice(0, 10);
+    // Section 1 — Monthly revenue
+    const revRows = monthly.map((m) => [m.month, m.revenue.toFixed(2)]);
+    // Section 2 — P&L summary
+    const plRows: (string | number)[][] = [
+      ['Produits (HTVA)', pl.revenueExclVat.toFixed(2)],
+      ['Charges (HTVA)', pl.expensesExclVat.toFixed(2)],
+      ['Résultat brut', pl.grossResult.toFixed(2)],
+      ['TVA nette', pl.vatNet.toFixed(2)],
+    ];
+    // Section 3 — Cash flow
+    const cfRows: (string | number)[][] = [
+      ['Encaissements', cash.inflows.toFixed(2)],
+      ['Décaissements', cash.outflows.toFixed(2)],
+      ['Solde', cash.netCashFlow.toFixed(2)],
+    ];
+    const csv = toCsv(['Chiffre d\'affaires mensuel (HTVA)', 'Montant'], revRows)
+      .concat('\r\n\r\n')
+      .concat(toCsv(['Compte de résultat', 'Montant'], plRows))
+      .concat('\r\n\r\n')
+      .concat(toCsv(['Flux de trésorerie', 'Montant'], cfRows));
+    downloadCsv(`BRABO_RAPPORT_${company.bceNumber.replace(/[^0-9]/g, '')}_${date}.csv`, csv);
+  };
+
   return (
     <div className="space-y-4">
       {/* ── Hero header ─────────────────────────────────────────────────── */}
@@ -47,6 +74,13 @@ export function ReportsView({ company, invoices, purchases, transactions, lang }
         <p className="text-[length:var(--text-xs)] text-[var(--text-secondary)]">
           {company.name} · {t.subtitle}
         </p>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button variant="secondary" onClick={handleExportCsv} className="h-[var(--control-height-sm)] px-2">
+          <Download className="w-3.5 h-3.5" />
+          Export CSV
+        </Button>
       </div>
 
       {/* ── KPI cards ───────────────────────────────────────────────────── */}
