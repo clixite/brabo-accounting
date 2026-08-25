@@ -29,7 +29,6 @@ import {
 } from '../utils/belgianAccounting';
 import { generateBelcotaxXml, downloadBelcotaxFile } from '../services/belcotaxGenerator';
 import { runFiscalAudit } from '../services/fiscalAudit';
-import confetti from 'canvas-confetti';
 
 interface TaxCenterViewProps {
   company: CompanyProfile;
@@ -118,7 +117,7 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+    // No confetti.
   };
 
   const handleSubmitVat = () => {
@@ -140,7 +139,7 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
     URL.revokeObjectURL(url);
     setSubmittedPeriod(selectedPeriod);
     setSubmitting(false);
-    confetti({ particleCount: 120, spread: 80, origin: { y: 0.7 } });
+    // No confetti.
   };
 
   const handleDownloadBelcotax = () => {
@@ -165,7 +164,7 @@ export const TaxCenterView: React.FC<TaxCenterViewProps> = ({
       ],
     });
     downloadBelcotaxFile(file);
-    confetti({ particleCount: 40, spread: 50, origin: { y: 0.7 } });
+    // No confetti.
   };
 
   return (

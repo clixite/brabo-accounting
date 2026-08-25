@@ -17,6 +17,7 @@ import { dbStore } from '../../server/services/dbStore';
 import { useSession } from '../../state/SessionContext';
 import type { Invoice, PurchaseExpense } from '../../server/types/db';
 import { SessionBar } from './SessionBar';
+import { FiscalStrategyPanel } from './FiscalStrategyPanel';
 
 interface ClientKpi {
   tenantId: string;
@@ -285,7 +286,8 @@ export function FirmPortalView() {
                           <Loader2 className="h-5 w-5 animate-spin mx-auto" />
                         </div>
                       ) : (
-                        <div className="grid md:grid-cols-2 gap-5">
+                        <div className="space-y-5">
+                          <div className="grid md:grid-cols-2 gap-5">
                           <div>
                             <div className="text-[11px] uppercase text-slate-500 mb-2">Factures clients</div>
                             <div className="space-y-2">
@@ -331,6 +333,11 @@ export function FirmPortalView() {
                                 </div>
                               ))}
                             </div>
+                          </div>
+                          </div>
+
+                          <div className="pt-4 border-t border-slate-800">
+                            <FiscalStrategyPanel clientName={selectedTenant?.name ?? ''} />
                           </div>
                         </div>
                       )}

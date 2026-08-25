@@ -7,7 +7,8 @@ import {
   Zap,
   FileCode,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Wand2
 } from 'lucide-react';
 import type { BankTransaction, Invoice, PurchaseExpense } from '../types/accounting';
 import type { Language } from '../i18n/translations';
@@ -15,7 +16,7 @@ import { translations } from '../i18n/translations';
 import { SAMPLE_CODA_FILE_CONTENT } from '../data/mockBelgianData';
 import { parseCODAStatement } from '../utils/belgianAccounting';
 import { codaBoxConnector } from '../services/codaBoxConnector';
-import confetti from 'canvas-confetti';
+import { autoEncodeTransactions } from '../services/autoBooker';
 
 interface BankingViewProps {
   transactions: BankTransaction[];
@@ -24,6 +25,7 @@ interface BankingViewProps {
   lang: Language;
   onReconcileTransaction: (txId: string, invoiceId?: string, expenseId?: string) => void;
   onImportCodaTransactions: (newTxs: BankTransaction[]) => void;
+  onAutoEncodeExpenses: (drafts: PurchaseExpense[]) => void;
 }
 
 export const BankingView: React.FC<BankingViewProps> = ({
@@ -33,11 +35,13 @@ export const BankingView: React.FC<BankingViewProps> = ({
   lang,
   onReconcileTransaction,
   onImportCodaTransactions,
+  onAutoEncodeExpenses,
 }) => {
   const t = translations[lang].banking;
   const [filterReconciled, setFilterReconciled] = useState<'all' | 'unreconciled' | 'reconciled'>('all');
   const [isDragOver, setIsDragOver] = useState(false);
   const [isCodaBoxSyncing, setIsCodaBoxSyncing] = useState(false);
+  const [autoEncodeResult, setAutoEncodeResult] = useState<string | null>(null);
 
   const filteredTransactions = transactions.filter(tx => {
     if (filterReconciled === 'unreconciled') return !tx.reconciled;
@@ -68,11 +72,20 @@ export const BankingView: React.FC<BankingViewProps> = ({
       }
     });
 
-    confetti({
-      particleCount: 90,
-      spread: 70,
-      origin: { y: 0.6 }
-    });
+    // No confetti: reconciliation is an audit step, keep the UI calm.
+
+  };
+
+  const handleAutoEncode = () => {
+    const drafts = autoEncodeTransactions(transactions);
+    if (drafts.length > 0) {
+      onAutoEncodeExpenses(drafts);
+    }
+    setAutoEncodeResult(
+      drafts.length > 0
+        ? `${drafts.length} dépense(s) encodée(s) automatiquement — à valider dans l'onglet Dépenses.`
+        : 'Aucun mouvement débit non réconcilié à encoder.',
+    );
   };
 
   const processCodaContent = (rawText: string) => {
@@ -93,7 +106,7 @@ export const BankingView: React.FC<BankingViewProps> = ({
     }));
 
     onImportCodaTransactions(newItems);
-    confetti({ particleCount: 50, spread: 50, origin: { y: 0.7 } });
+    // No confetti.
   };
 
   const handleSimulateCodaImport = () => {
@@ -108,7 +121,7 @@ export const BankingView: React.FC<BankingViewProps> = ({
       if (allTransactions.length > 0) {
         onImportCodaTransactions(allTransactions);
       }
-      confetti({ particleCount: 60, spread: 60, origin: { y: 0.7 } });
+      // No confetti.
     } finally {
       setIsCodaBoxSyncing(false);
     }
@@ -195,6 +208,15 @@ export const BankingView: React.FC<BankingViewProps> = ({
           </button>
 
           <button
+            onClick={handleAutoEncode}
+            title="Classer automatiquement les dépenses (PCMN, TVA, déductibilité) depuis les mouvements débit"
+            className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-sky-950/40 hover:bg-sky-900/40 text-sky-300 border border-sky-500/40 hover:border-sky-500/60 transition flex items-center shadow-sm"
+          >
+            <Wand2 className="w-3.5 h-3.5 mr-1.5 text-sky-400" />
+            <span>Auto-encoder les dépenses</span>
+          </button>
+
+          <button
             onClick={handleAutoReconcileAll}
             className="px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 transition flex items-center"
           >
@@ -203,6 +225,12 @@ export const BankingView: React.FC<BankingViewProps> = ({
           </button>
         </div>
       </div>
+
+      {autoEncodeResult && (
+        <div className="rounded-xl bg-sky-950/30 border border-sky-500/30 px-4 py-2.5 text-xs text-sky-200">
+          {autoEncodeResult}
+        </div>
+      )}
 
       {/* Drag & Drop CODA Zone */}
       <div

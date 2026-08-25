@@ -292,6 +292,7 @@ export function ClientWorkspace() {
             lang={lang}
             onReconcileTransaction={handleReconcileTransaction}
             onImportCodaTransactions={handleImportCodaTransactions}
+            onAutoEncodeExpenses={(drafts) => setPurchases(prev => [...drafts, ...prev])}
           />
         )}
 

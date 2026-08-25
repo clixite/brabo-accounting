@@ -4,11 +4,12 @@ import { cn } from './cn';
 /** Compact square button used for icons (close, actions). */
 export const IconButton: React.FC<{
   label: string;
-  onClick?: () => void;
+  onClick?: React.MouseEventHandler<HTMLButtonElement>;
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
-}> = ({ label, onClick, children, className, disabled }) => (
+  tone?: 'default' | 'danger' | 'positive';
+}> = ({ label, onClick, children, className, disabled, tone = 'default' }) => (
   <button
     type="button"
     aria-label={label}
@@ -19,9 +20,13 @@ export const IconButton: React.FC<{
       'inline-flex items-center justify-center',
       'h-[var(--control-height)] w-[var(--control-height)]',
       'rounded-[var(--radius-md)]',
-      'text-[var(--text-secondary)]',
-      'hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+      'border border-transparent',
       'disabled:opacity-50 disabled:cursor-not-allowed',
+      tone === 'danger'
+        ? 'text-[var(--text-tertiary)] hover:text-[var(--state-critical-text)] hover:bg-[var(--state-critical-bg)]'
+        : tone === 'positive'
+          ? 'text-[var(--text-tertiary)] hover:text-[var(--state-positive-text)] hover:bg-[var(--state-positive-bg)]'
+          : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
       className,
     )}
   >
@@ -34,7 +39,7 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 /** Standard action button. */
 export const Button: React.FC<{
   children: React.ReactNode;
-  onClick?: () => void;
+  onClick?: React.MouseEventHandler<HTMLButtonElement>;
   variant?: ButtonVariant;
   disabled?: boolean;
   className?: string;

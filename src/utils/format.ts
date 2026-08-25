@@ -6,6 +6,8 @@
 const moneyFormatter = new Intl.NumberFormat('fr-BE', {
   style: 'currency',
   currency: 'EUR',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 const amountFormatter = new Intl.NumberFormat('fr-BE', {
@@ -28,4 +30,14 @@ export function formatSignedMoney(value: number): string {
   const safe = Number.isFinite(value) ? value : 0;
   const sign = safe > 0 ? '+' : safe < 0 ? '−' : '';
   return `${sign}${moneyFormatter.format(Math.abs(safe))}`;
+}
+
+/** `15/03/2026` from ISO `YYYY-MM-DD` (or ISO datetime). */
+export function formatDate(iso: string | undefined): string {
+  if (!iso) return '—';
+  const raw = iso.length > 10 ? iso.slice(0, 10) : iso;
+  const parts = raw.split('-');
+  if (parts.length !== 3) return iso;
+  const [y, m, d] = parts;
+  return `${d}/${m}/${y}`;
 }
