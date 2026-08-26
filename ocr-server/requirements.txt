@@ -13,4 +13,5 @@ pydantic>=2.9,<3
 pypdfium2>=4.30
 opencv-python-headless>=4.10
 pillow>=10.4
-numpy>=1.26,<3
+# paddlex 3.0.0 pins numpy==1.24.4 for Python < 3.12 (the Docker base image).
+numpy==1.24.4

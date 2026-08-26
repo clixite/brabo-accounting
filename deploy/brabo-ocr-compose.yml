@@ -1,0 +1,30 @@
+services:
+  ocr-server:
+    build: ./ocr-server
+    image: brabo-ocr:latest
+    container_name: brabo-ocr
+    restart: unless-stopped
+    environment:
+      PADDLE_LANG: latin
+      OCR_DOC_ORIENTATION: "1"
+      OCR_DOC_UNWARPING: "1"
+      OCR_MAX_UPLOAD_MB: "15"
+      OCR_CORS_ORIGINS: ""
+      OCR_SERVICE_TOKEN: ${OCR_SERVICE_TOKEN:-}
+    volumes:
+      - paddle-models:/home/ocr/.paddlex
+    deploy:
+      resources:
+        limits:
+          memory: 3g
+    networks:
+      - brabo-internal
+
+# Internal only: the OCR service is reachable solely from brabo-api on the
+# Docker network — it is never exposed to Traefik/the public internet.
+networks:
+  brabo-internal:
+    external: true
+
+volumes:
+  paddle-models:

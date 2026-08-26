@@ -15,6 +15,7 @@ export const AppShell: React.FC<{
   overdueCount: number;
   pendingExpensesCount: number;
   unreconciledBankCount: number;
+  visibleTabs?: Set<NavTab>;
   children: React.ReactNode;
 }> = ({
   company,
@@ -24,35 +25,38 @@ export const AppShell: React.FC<{
   overdueCount,
   pendingExpensesCount,
   unreconciledBankCount,
+  visibleTabs,
   children,
 }) => {
   const t = translations[lang];
   const { theme, density, toggleTheme, toggleDensity } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
 
-  const groups = useMemo(
-    () =>
-      defaultNavGroups({
-        overdueCount,
-        pendingExpensesCount,
-        unreconciledBankCount,
-        labels: {
-          dashboard: t.nav.dashboard,
-          invoicing: t.nav.invoicing,
-          expenses: t.nav.expenses,
-          peppol: t.nav.peppol,
-          taxCenter: t.nav.taxCenter,
-          banking: t.nav.banking,
-          fiduciary: t.nav.fiduciary,
-          documents: t.nav.documents,
-          payroll: t.nav.payroll,
-          reports: t.nav.reports,
-          audit: t.nav.audit,
-          settings: t.nav.settings,
-        },
-      }),
-    [overdueCount, pendingExpensesCount, unreconciledBankCount, t],
-  );
+  const groups = useMemo(() => {
+    const all = defaultNavGroups({
+      overdueCount,
+      pendingExpensesCount,
+      unreconciledBankCount,
+      labels: {
+        dashboard: t.nav.dashboard,
+        invoicing: t.nav.invoicing,
+        expenses: t.nav.expenses,
+        peppol: t.nav.peppol,
+        taxCenter: t.nav.taxCenter,
+        banking: t.nav.banking,
+        fiduciary: t.nav.fiduciary,
+        documents: t.nav.documents,
+        payroll: t.nav.payroll,
+        reports: t.nav.reports,
+        audit: t.nav.audit,
+        settings: t.nav.settings,
+      },
+    });
+    if (!visibleTabs) return all;
+    return all
+      .map((g) => ({ ...g, items: g.items.filter((i) => visibleTabs.has(i.id)) }))
+      .filter((g) => g.items.length > 0);
+  }, [overdueCount, pendingExpensesCount, unreconciledBankCount, t, visibleTabs]);
 
   return (
     <div className="min-h-screen bg-[var(--bg-app)] text-[var(--text-primary)]">

@@ -4,7 +4,7 @@
  *  - Hashed build assets (/assets/*.js|css): cache-first (immutable).
  *  - Everything else same-origin GET: stale-while-revalidate.
  */
-const CACHE = 'brabo-v1';
+const CACHE = 'brabo-v3';
 const PRECACHE = ['/', '/index.html', '/manifest.webmanifest', '/pwa-icon.svg', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {

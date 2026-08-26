@@ -52,10 +52,10 @@ def test_format_vat():
 
 
 def test_validate_ogm_canonical():
-    result = validate_ogm("+++123/4567/89012+++")
+    result = validate_ogm("+++000/0001/23470+++")
     assert result["is_valid"] is True
 
-    result = validate_ogm("123456789012")
+    result = validate_ogm("123456789002")  # 1234567890 % 97 == 2 -> check "02"
     assert result["is_valid"] is True
 
 

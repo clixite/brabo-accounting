@@ -149,3 +149,63 @@ export async function apiHealth(): Promise<boolean> {
     return false;
   }
 }
+
+export interface ViesLiveResult {
+  isValid: boolean | null;
+  name: string | null;
+  address: string | null;
+  countryCode: string;
+  vatNumber: string;
+  requestDate?: string;
+  error?: string;
+}
+
+/** Real intra-EU VAT validation (European Commission SOAP) via the backend. */
+export async function apiValidateVies(
+  countryCode: string,
+  vatNumber: string,
+  timeoutMs = 20_000,
+): Promise<ViesLiveResult> {
+  if (!isApiConfigured()) throw new Error('API non configurée');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${API_URL}/api/vies/validate`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ countryCode, vatNumber }),
+      signal: controller.signal,
+    });
+    const body = (await res.json()) as Partial<ViesLiveResult> & { error?: string };
+    if (!res.ok) throw new Error(body.error || `VIES HTTP ${res.status}`);
+    return {
+      isValid: body.isValid ?? null,
+      name: body.name ?? null,
+      address: body.address ?? null,
+      countryCode: body.countryCode || countryCode.toUpperCase(),
+      vatNumber: body.vatNumber || vatNumber,
+      requestDate: body.requestDate,
+      error: body.error,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Create/update a counterparty (client) enriched from VIES/KBO. */
+export async function apiSaveClient(
+  tenantBce: string,
+  client: Record<string, unknown>,
+): Promise<{ client?: unknown } | null> {
+  if (!isApiConfigured()) return null;
+  try {
+    const res = await fetch(`${API_URL}/api/clients`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ tenantId: tenantBce, client }),
+    });
+    return res.ok ? ((await res.json()) as { client?: unknown }) : null;
+  } catch {
+    return null;
+  }
+}

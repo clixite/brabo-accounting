@@ -34,3 +34,22 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  ocr-tests:
+    name: OCR server tests (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: pip install pytest fastapi pydantic python-multipart httpx pillow
+
+      - name: Run OCR server tests
+        working-directory: ocr-server
+        run: python -m pytest tests -q

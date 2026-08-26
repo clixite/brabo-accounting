@@ -75,6 +75,7 @@ export const Sidebar: React.FC<{
                 return (
                   <button
                     key={item.id}
+                    data-testid={`nav-${item.id}`}
                     onClick={() => onSelectTab(item.id)}
                     className={cn(
                       'w-full flex items-center gap-2 rounded-[var(--radius-md)]',

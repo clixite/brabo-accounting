@@ -26,6 +26,7 @@ import type { ClientFinancialProfile } from '../../services/fiscalRecommender';
 import { Card, CardHeader, CardBody } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { FirmTeamPanel } from './FirmTeamPanel';
 
 interface ClientKpi {
   tenantId: string;
@@ -75,13 +76,28 @@ function buildProfile(
  * scoped per tenant through the multi-tenant store.
  */
 export function FirmPortalView() {
-  const { user, tenants, grantSelfDeclaration, revokeSelfDeclaration, enterClientWorkspace } = useSession();
+  const { user, tenants, grantSelfDeclaration, revokeSelfDeclaration, enterClientWorkspace, firmRole } = useSession();
   const [kpis, setKpis] = useState<Record<string, ClientKpi>>({});
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<ClientDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [busyTenant, setBusyTenant] = useState<string | null>(null);
+  const isFirmAdmin = firmRole === 'FIRM_ADMIN';
+  const [firmId, setFirmId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const fms = await dbStore.platform.listFirmMembershipsForUser(user.id);
+      const active = fms.find((m) => m.status === 'active');
+      if (!cancelled) setFirmId(active?.firmId ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -288,6 +304,8 @@ export function FirmPortalView() {
           </CardBody>
         </Card>
 
+        {isFirmAdmin && firmId && <FirmTeamPanel firmId={firmId} />}
+
         {loading ? (
           <div className="flex items-center justify-center py-20 text-[var(--text-tertiary)]">
             <Loader2 className="h-6 w-6 animate-spin mr-2" /> Chargement des dossiers…
@@ -341,9 +359,11 @@ export function FirmPortalView() {
 
                       {/* Actions */}
                       <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => toggleDeclaration(tenant.id, kpi.selfDeclaration)}
-                          disabled={busyTenant === tenant.id}
+                        {isFirmAdmin && (
+                          <button
+                            data-testid="toggle-declaration"
+                            onClick={() => toggleDeclaration(tenant.id, kpi.selfDeclaration)}
+                            disabled={busyTenant === tenant.id}
                           className={`inline-flex items-center justify-center gap-1.5 h-[var(--control-height)] px-3 rounded-[var(--radius-md)] text-[length:var(--text-xs)] font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                             kpi.selfDeclaration
                               ? 'bg-[var(--state-positive-bg)] text-[var(--state-positive-text)] border-[var(--state-positive-border)] hover:bg-[var(--bg-hover)]'
@@ -359,7 +379,8 @@ export function FirmPortalView() {
                             <ShieldOff className="h-3.5 w-3.5" />
                           )}
                           {kpi.selfDeclaration ? 'Déclaration client active' : 'Déclaration client bloquée'}
-                        </button>
+                          </button>
+                        )}
 
                         <Button variant="secondary" onClick={() => openDetail(tenant.id)}>
                           <FileText className="h-3.5 w-3.5" /> Dossier

@@ -24,12 +24,22 @@ import type { ReactNode } from 'react';
 import { dbStore } from '../server/services/dbStore';
 import { DEMO_USERS, resolveDemoUser, seedDemoData } from '../server/services/demoBootstrap';
 import { PERMISSIONS, ROLES } from '../server/types/db';
-import type { Membership, Permission, Role, Tenant, User } from '../server/types/db';
+import type { FirmRole, Membership, Permission, PlatformAdmin, Role, Tenant, User } from '../server/types/db';
 import type { Language } from '../i18n/translations';
 import { apiLogin, apiRegister, clearJwt, type RegisterPayload } from '../services/apiClient';
 
 export type SessionStatus = 'loading' | 'unauthenticated' | 'authenticated';
-export type SessionMode = 'client' | 'cabinet';
+export type SessionMode = 'client' | 'cabinet' | 'platform';
+
+/** The four SaaS profiles reachable from the workspace selector. */
+export type DemoProfile = 'client-admin' | 'client-membre' | 'admin-fiduciaire' | 'membre-fiduciaire';
+
+/** State carried while a platform operator impersonates a firm. */
+export interface FirmImpersonation {
+  firmId: string;
+  firmName: string;
+  impersonatorEmail: string;
+}
 
 export interface SessionContextValue {
   status: SessionStatus;
@@ -43,7 +53,14 @@ export interface SessionContextValue {
   activeRole: Role | null;
   permissions: Set<Permission>;
   canSelfDeclare: boolean;
-  loginDemo: (kind: 'client' | 'cabinet') => Promise<void>;
+  /** Non-null when the authenticated user is a platform operator. */
+  platformAdmin: PlatformAdmin | null;
+  /** Non-null while the platform is impersonating a firm. */
+  impersonation: FirmImpersonation | null;
+  /** Non-null when the authenticated user belongs to an accounting firm. */
+  firmRole: FirmRole | null;
+  loginDemo: (profile: DemoProfile) => Promise<void>;
+  loginPlatform: () => Promise<void>;
   loginItsme: () => Promise<void>;
   /** Real backend auth (PostgreSQL): email + password → JWT session. */
   loginWithPassword: (email: string, password: string) => Promise<void>;
@@ -55,6 +72,10 @@ export interface SessionContextValue {
   forceClientWorkspace: boolean;
   enterClientWorkspace: (tenantId: string) => Promise<void>;
   exitClientWorkspace: () => void;
+  /** Platform-only: assume a firm's FIRM_ADMIN session (audited). */
+  impersonateFirm: (firmId: string) => Promise<void>;
+  /** Platform-only: return to the platform console. */
+  exitImpersonation: () => Promise<void>;
   grantSelfDeclaration: (tenantId: string) => Promise<void>;
   revokeSelfDeclaration: (tenantId: string) => Promise<void>;
 }
@@ -95,6 +116,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [permissions, setPermissions] = useState<Set<Permission>>(new Set());
   const [refreshTick, setRefreshTick] = useState(0);
   const [forceClientWorkspace, setForceClientWorkspace] = useState(false);
+  const [platformAdmin, setPlatformAdmin] = useState<PlatformAdmin | null>(null);
+  const [impersonation, setImpersonation] = useState<FirmImpersonation | null>(null);
+  const [firmRole, setFirmRole] = useState<FirmRole | null>(null);
 
   // Persist the UI language preference.
   useEffect(() => {
@@ -111,11 +135,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setPermissions(perms);
   }, []);
 
-  /** Activates an authenticated user: loads memberships + tenants + defaults. */
+  /** Activates an authenticated user: platform, firm or client context. */
   const activateUser = useCallback(async (activated: User, preferredTenantId?: string) => {
+    const platform = await dbStore.platform.findPlatformAdminForUser(activated.id);
+    setPlatformAdmin(platform);
+
+    // Platform operators have no tenant memberships: land on the platform console.
+    if (platform) {
+      setUser(activated);
+      setMemberships([]);
+      setTenants([]);
+      setActiveTenantId(null);
+      setPermissions(new Set());
+      setForceClientWorkspace(false);
+      setFirmRole(null);
+      setStatus('authenticated');
+      globalThis.localStorage?.setItem(SESSION_KEY, activated.email);
+      globalThis.localStorage?.removeItem(TENANT_KEY);
+      return;
+    }
+
     const members = await dbStore.memberships.listForUser(activated.id);
     const mode = resolveMode(members);
     const tenantList = await dbStore.tenants.listForUser(activated.id);
+    const firmMemberships = await dbStore.platform.listFirmMembershipsForUser(activated.id);
+    const activeFirmRole = firmMemberships.find((m) => m.status === 'active')?.role ?? null;
     const chosen =
       preferredTenantId && members.some((m) => m.tenantId === preferredTenantId)
         ? preferredTenantId
@@ -126,6 +170,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setTenants(tenantList);
     setActiveTenantId(chosen);
     setForceClientWorkspace(false);
+    setFirmRole(activeFirmRole);
     setStatus('authenticated');
     globalThis.localStorage?.setItem(SESSION_KEY, activated.email);
     if (chosen) globalThis.localStorage?.setItem(TENANT_KEY, chosen);
@@ -165,8 +210,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [user, activeTenantId, refreshTick, refreshPermissions]);
 
   const loginDemo = useCallback(
-    async (kind: 'client' | 'cabinet') => {
-      const email = kind === 'cabinet' ? DEMO_USERS.accountant : DEMO_USERS.ownerBrabo;
+    async (profile: DemoProfile) => {
+      const emailMap: Record<DemoProfile, string> = {
+        'client-admin': DEMO_USERS.ownerBrabo,
+        'client-membre': DEMO_USERS.employeeBrabo,
+        'admin-fiduciaire': DEMO_USERS.accountant,
+        'membre-fiduciaire': DEMO_USERS.firmMember,
+      };
+      const email = emailMap[profile];
       const resolved = await resolveDemoUser(email);
       if (!resolved) throw new Error('Utilisateur de démonstration introuvable.');
       await activateUser(resolved);
@@ -177,8 +228,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const loginItsme = useCallback(async () => {
     // Simulated itsme® Belgian Digital Identity — resolves to the Brabo gérant
     // for the demo (in production this is an eIDAS "high" OIDC flow).
-    await loginDemo('client');
+    await loginDemo('client-admin');
   }, [loginDemo]);
+
+  /** Super Admin login — lands on the platform console. */
+  const loginPlatform = useCallback(async () => {
+    const resolved = await resolveDemoUser(DEMO_USERS.platformAdmin);
+    if (!resolved) throw new Error('Administrateur plateforme introuvable.');
+    await activateUser(resolved);
+  }, [activateUser]);
 
   /**
    * Real backend login (PostgreSQL). On success the JWT is stored and the user
@@ -189,7 +247,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string) => {
       const auth = await apiLogin(email.trim(), password);
       if (!auth) throw new Error('Connexion refusée : identifiants invalides ou API injoignable.');
-      await loginDemo('client');
+      await loginDemo('client-admin');
     },
     [loginDemo],
   );
@@ -198,7 +256,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     async (payload: RegisterPayload) => {
       const auth = await apiRegister(payload);
       if (!auth) throw new Error('Création de compte refusée : vérifiez vos informations.');
-      await loginDemo('client');
+      await loginDemo('client-admin');
     },
     [loginDemo],
   );
@@ -211,6 +269,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setActiveTenantId(null);
     setPermissions(new Set());
     setForceClientWorkspace(false);
+    setPlatformAdmin(null);
+    setImpersonation(null);
+    setFirmRole(null);
     setStatus('unauthenticated');
     globalThis.localStorage?.removeItem(SESSION_KEY);
     globalThis.localStorage?.removeItem(TENANT_KEY);
@@ -238,6 +299,47 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const exitClientWorkspace = useCallback(() => {
     setForceClientWorkspace(false);
   }, []);
+
+  /** Platform-only: assume a firm's FIRM_ADMIN session (audited in the platform trail). */
+  const impersonateFirm = useCallback(
+    async (firmId: string) => {
+      if (!user || !platformAdmin) throw new Error('Réservé à la plateforme.');
+      const firm = await dbStore.platform.findFirmById(firmId);
+      if (!firm) throw new Error('Firme introuvable.');
+      const members = await dbStore.platform.listFirmMemberships(firmId);
+      const adminMember = members.find((m) => m.role === 'FIRM_ADMIN' && m.status === 'active');
+      if (!adminMember) throw new Error('Aucun administrateur actif pour cette firme.');
+      const firmAdminUser = await dbStore.users.findById(adminMember.userId);
+      if (!firmAdminUser) throw new Error('Administrateur de firme introuvable.');
+
+      await dbStore.platform.appendPlatformAudit({
+        actorUserId: user.id,
+        actorEmail: user.email,
+        actorRole: platformAdmin.role,
+        action: 'READ_SENSITIVE',
+        entity: 'Firm',
+        entityId: firmId,
+        entityLabel: firm.name,
+        reason: 'Impersonation (connexion en tant que firme)',
+      });
+
+      setImpersonation({ firmId, firmName: firm.name, impersonatorEmail: user.email });
+      await activateUser(firmAdminUser);
+    },
+    [user, platformAdmin, activateUser],
+  );
+
+  /** Platform-only: leave the impersonated firm and return to the platform console. */
+  const exitImpersonation = useCallback(async () => {
+    if (!impersonation) return;
+    const impersonator = await dbStore.users.findByEmail(impersonation.impersonatorEmail);
+    setImpersonation(null);
+    if (impersonator) {
+      await activateUser(impersonator);
+    } else {
+      logout();
+    }
+  }, [impersonation, activateUser, logout]);
 
   /** The accountant toggles the client owner's self-filing right. */
   const setSelfDeclaration = useCallback(
@@ -276,7 +378,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [memberships, activeTenantId],
   );
   const activeRole = activeMembership?.role ?? null;
-  const mode = useMemo(() => resolveMode(memberships), [memberships]);
+  const mode = useMemo(() => {
+    if (platformAdmin) return 'platform';
+    if (impersonation) return 'cabinet';
+    return resolveMode(memberships);
+  }, [platformAdmin, impersonation, memberships]);
   const canSelfDeclare = permissions.has(PERMISSIONS.VAT_SUBMIT);
 
   const value: SessionContextValue = {
@@ -291,7 +397,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     activeRole,
     permissions,
     canSelfDeclare,
+    platformAdmin,
+    impersonation,
+    firmRole,
     loginDemo,
+    loginPlatform,
     loginItsme,
     loginWithPassword,
     registerWithPassword,
@@ -300,6 +410,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     forceClientWorkspace,
     enterClientWorkspace,
     exitClientWorkspace,
+    impersonateFirm,
+    exitImpersonation,
     grantSelfDeclaration,
     revokeSelfDeclaration,
   };

@@ -11,13 +11,22 @@ const ROLE_LABELS: Record<string, string> = {
   EMPLOYEE: 'Employé',
 };
 
+const FIRM_ROLE_LABELS: Record<string, string> = {
+  FIRM_ADMIN: 'Admin fiduciaire',
+  PARTNER: 'Associé',
+  SENIOR: 'Comptable senior',
+  JUNIOR: 'Comptable junior',
+  BOOKKEEPER: 'Comptable (encodage)',
+  READONLY: 'Lecture seule',
+};
+
 /**
  * Slim session strip shown above every workspace. It makes the current
  * identity, role and the client's self-filing right explicit — the visible
  * proof of the client ↔ cabinet separation.
  */
 export function SessionBar({ syncState }: { syncState?: 'idle' | 'syncing' | 'synced' | 'error' }) {
-  const { user, activeRole, activeTenant, canSelfDeclare, mode, forceClientWorkspace, exitClientWorkspace, logout, lang, setLang } =
+  const { user, activeRole, activeTenant, canSelfDeclare, mode, forceClientWorkspace, exitClientWorkspace, logout, lang, setLang, firmRole } =
     useSession();
 
   const syncIndicator =
@@ -37,9 +46,19 @@ export function SessionBar({ syncState }: { syncState?: 'idle' | 'syncing' | 'sy
             <BadgeCheck className="h-3.5 w-3.5 text-[var(--accent-solid)] shrink-0" />
             <span className="truncate">{user?.displayName}</span>
           </span>
-          <Badge tone="neutral" className="rounded-[var(--radius-full)] px-2 font-semibold">
-            {activeRole ? ROLE_LABELS[activeRole] ?? activeRole : '—'}
-          </Badge>
+          <span data-testid="session-role">
+            <Badge tone="neutral" className="rounded-[var(--radius-full)] px-2 font-semibold">
+              {activeRole ? ROLE_LABELS[activeRole] ?? activeRole : '—'}
+            </Badge>
+          </span>
+
+          {firmRole && (
+            <span data-testid="session-firm-role">
+              <Badge tone="positive" className="rounded-[var(--radius-full)] px-2 font-semibold">
+                {FIRM_ROLE_LABELS[firmRole] ?? firmRole}
+              </Badge>
+            </span>
+          )}
 
           {syncIndicator && (
             <span className="inline-flex items-center gap-1.5">

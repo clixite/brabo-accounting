@@ -16,6 +16,7 @@
 import {
   DbError,
   PERMISSIONS,
+  PLATFORM_ROLE_PERMISSIONS,
   ROLE_PERMISSIONS,
   ROLE_RANK,
 } from '../types/db';
@@ -33,6 +34,9 @@ import type {
   ExpenseReceipt,
   FieldDiff,
   FiduciaryConnection,
+  Firm,
+  FirmMembership,
+  FirmSubscription,
   ID,
   Invoice,
   InvoiceRepository,
@@ -45,6 +49,10 @@ import type {
   PaymentLog,
   Permission,
   PeppolMetadata,
+  Plan,
+  PlatformAdmin,
+  PlatformAuditLog,
+  PlatformRole,
   PurchaseExpense,
   PurchaseExpenseRepository,
   ReconciliationMethod,
@@ -316,6 +324,12 @@ export interface PersistedState {
   documents: SharedDocument[];
   sessions: Session[];
   auditLogs: AuditLog[];
+  firms: Firm[];
+  firmMemberships: FirmMembership[];
+  plans: Plan[];
+  firmSubscriptions: FirmSubscription[];
+  platformAdmins: PlatformAdmin[];
+  platformAuditLogs: PlatformAuditLog[];
 }
 
 export interface PersistenceAdapter {
@@ -1341,6 +1355,15 @@ export class BraboDbStore implements DatabaseStore {
   private readonly membershipRows = new Map<ID, Membership>();
   private readonly sessionRows = new Map<ID, Session>();
 
+  // 3-tier SaaS hierarchy: platform → firms → tenants.
+  private readonly firmRows = new Map<ID, Firm>();
+  private readonly firmMembershipRows = new Map<ID, FirmMembership>();
+  private readonly planRows = new Map<ID, Plan>();
+  private readonly firmSubscriptionRows = new Map<ID, FirmSubscription>();
+  private readonly platformAdminRows = new Map<ID, PlatformAdmin>();
+  private readonly platformAuditLogs: PlatformAuditLog[] = [];
+  private platformAuditHead: { hash: Sha256Hex; sequence: number } | null = null;
+
   private readonly auditLogger: AuditLogger;
   private initialized = false;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1404,6 +1427,388 @@ export class BraboDbStore implements DatabaseStore {
     return this.auditLogger;
   }
 
+  /** Guards a platform mutation; `system` bypasses for seeds/background jobs. */
+  private assertPlatformOperator(userId: UserId, permission: Permission): void {
+    if (userId === 'system') return;
+    const admin = Array.from(this.platformAdminRows.values()).find(
+      (a) => a.userId === userId && a.status === 'active' && !a.deletedAt,
+    );
+    if (!admin) {
+      throw new DbError('FORBIDDEN', 'Platform operator only.', { userId });
+    }
+    const perms = PLATFORM_ROLE_PERMISSIONS[admin.role] ?? [];
+    if (!perms.includes(permission)) {
+      throw new DbError('FORBIDDEN', `Platform role lacks "${permission}".`, {
+        role: admin.role,
+        permission,
+      });
+    }
+  }
+
+  /** Appends one entry to the global, hash-chained platform audit trail. */
+  private async appendPlatformAuditEntry(
+    actor: { userId: UserId | 'system'; email?: string; role?: PlatformRole },
+    entry: {
+      action: AuditAction;
+      entity: AuditEntity;
+      entityId: ID;
+      entityLabel?: string;
+      before?: JsonValue | null;
+      after?: JsonValue | null;
+      reason?: string;
+    },
+  ): Promise<PlatformAuditLog> {
+    const previousHash = this.platformAuditHead?.hash ?? GENESIS_HASH;
+    const sequence = (this.platformAuditHead?.sequence ?? 0) + 1;
+    const timestamp = nowIso();
+    const before = entry.before ?? null;
+    const after = entry.after ?? null;
+
+    const hash = await computeAuditHash({
+      previousHash,
+      sequence,
+      tenantId: 'platform' as TenantId,
+      timestamp,
+      actorUserId: String(actor.userId),
+      action: entry.action,
+      entity: entry.entity,
+      entityId: entry.entityId,
+      before,
+      after,
+    });
+
+    const log: PlatformAuditLog = {
+      id: createId('plataudit'),
+      sequence,
+      timestamp,
+      actorUserId: actor.userId,
+      actorEmail: actor.email,
+      actorRole: actor.role,
+      action: entry.action,
+      entity: entry.entity,
+      entityId: entry.entityId,
+      entityLabel: entry.entityLabel,
+      before,
+      after,
+      previousHash,
+      hash,
+      hashAlgorithm: 'SHA-256',
+      reason: entry.reason,
+    };
+    this.platformAuditLogs.push(log);
+    this.platformAuditHead = { hash, sequence };
+    this.schedulePersist();
+    return clone(log);
+  }
+
+  /* ------------------------ platform (Super Admin) ------------------------ */
+
+  readonly platform: DatabaseStore['platform'] = {
+    listFirms: async (options = {}) => {
+      const rows = Array.from(this.firmRows.values()).filter((f) => !f.deletedAt);
+      return paginate(clone(rows), options as ListOptions<Firm>);
+    },
+    findFirmById: async (id) => {
+      const row = this.firmRows.get(id);
+      return row && !row.deletedAt ? clone(row) : null;
+    },
+    findFirmBySlug: async (slug) => {
+      const found = Array.from(this.firmRows.values()).find(
+        (f) => f.brand.slug === slug && !f.deletedAt,
+      );
+      return found ? clone(found) : null;
+    },
+    createFirm: async (input, actorUserId) => {
+      this.assertPlatformOperator(actorUserId, PERMISSIONS.PLATFORM_MANAGE);
+      const digits = input.bceDigits.replace(/[^0-9]/g, '').padStart(10, '0');
+      if (Array.from(this.firmRows.values()).some((f) => f.bceDigits === digits && !f.deletedAt)) {
+        throw new DbError('CONFLICT', `A firm already exists for BCE ${digits}.`, { bceDigits: digits });
+      }
+      const timestamp = nowIso();
+      const id = (input as { id?: ID }).id ?? createId('firm');
+      const firm: Firm = {
+        ...(clone(input) as Omit<Firm, ManagedFields>),
+        id,
+        bceDigits: digits,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      this.firmRows.set(id, firm);
+      await this.appendPlatformAuditEntry(
+        { userId: actorUserId },
+        { action: 'CREATE', entity: 'Firm', entityId: id, entityLabel: firm.name, after: toJson(firm) },
+      );
+      return clone(firm);
+    },
+    updateFirm: async (id, patch, actorUserId, reason) => {
+      this.assertPlatformOperator(actorUserId, PERMISSIONS.PLATFORM_MANAGE);
+      const existing = this.firmRows.get(id);
+      if (!existing || existing.deletedAt) throw new DbError('NOT_FOUND', `Firm ${id} not found.`, { id });
+      const before = clone(existing);
+      const sanitized = { ...(clone(patch) as Record<string, unknown>) };
+      delete sanitized.id;
+      delete sanitized.createdAt;
+      delete sanitized.updatedAt;
+      delete sanitized.deletedAt;
+      const updated: Firm = { ...existing, ...sanitized, updatedAt: nowIso() } as Firm;
+      this.firmRows.set(id, updated);
+      await this.appendPlatformAuditEntry(
+        { userId: actorUserId },
+        { action: 'UPDATE', entity: 'Firm', entityId: id, entityLabel: updated.name, before: toJson(before), after: toJson(updated), reason },
+      );
+      return clone(updated);
+    },
+    setFirmStatus: async (id, status, actorUserId, reason) => {
+      this.assertPlatformOperator(actorUserId, PERMISSIONS.PLATFORM_MANAGE);
+      const existing = this.firmRows.get(id);
+      if (!existing || existing.deletedAt) throw new DbError('NOT_FOUND', `Firm ${id} not found.`, { id });
+      const before = clone(existing);
+      const updated: Firm = { ...existing, status, updatedAt: nowIso() };
+      this.firmRows.set(id, updated);
+      await this.appendPlatformAuditEntry(
+        { userId: actorUserId },
+        { action: 'UPDATE', entity: 'Firm', entityId: id, entityLabel: updated.name, before: toJson(before), after: toJson(updated), reason: reason ?? `status → ${status}` },
+      );
+      return clone(updated);
+    },
+    countFirmClients: async (firmId) => {
+      return Array.from(this.tenantRows.values()).filter((t) => t.firmId === firmId && !t.deletedAt).length;
+    },
+    listFirmClients: async (firmId) => {
+      return clone(
+        Array.from(this.tenantRows.values()).filter((t) => t.firmId === firmId && !t.deletedAt),
+      );
+    },
+
+    listPlans: async () => clone(Array.from(this.planRows.values()).filter((p) => !p.deletedAt)),
+    findPlanById: async (id) => {
+      const row = this.planRows.get(id);
+      return row && !row.deletedAt ? clone(row) : null;
+    },
+    findPlanBySlug: async (slug) => {
+      const found = Array.from(this.planRows.values()).find((p) => p.slug === slug && !p.deletedAt);
+      return found ? clone(found) : null;
+    },
+    createPlan: async (input, actorUserId) => {
+      this.assertPlatformOperator(actorUserId, PERMISSIONS.PLATFORM_BILLING);
+      const timestamp = nowIso();
+      const id = (input as { id?: ID }).id ?? createId('plan');
+      const plan: Plan = {
+        ...(clone(input) as Omit<Plan, ManagedFields>),
+        id,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      this.planRows.set(id, plan);
+      await this.appendPlatformAuditEntry(
+        { userId: actorUserId },
+        { action: 'CREATE', entity: 'Plan', entityId: id, entityLabel: plan.name, after: toJson(plan) },
+      );
+      return clone(plan);
+    },
+    updatePlan: async (id, patch, actorUserId) => {
+      this.assertPlatformOperator(actorUserId, PERMISSIONS.PLATFORM_BILLING);
+      const existing = this.planRows.get(id);
+      if (!existing || existing.deletedAt) throw new DbError('NOT_FOUND', `Plan ${id} not found.`, { id });
+      const before = clone(existing);
+      const sanitized = { ...(clone(patch) as Record<string, unknown>) };
+      delete sanitized.id;
+      delete sanitized.createdAt;
+      delete sanitized.updatedAt;
+      delete sanitized.deletedAt;
+      const updated: Plan = { ...existing, ...sanitized, updatedAt: nowIso() } as Plan;
+      this.planRows.set(id, updated);
+      await this.appendPlatformAuditEntry(
+        { userId: actorUserId },
+        { action: 'UPDATE', entity: 'Plan', entityId: id, entityLabel: updated.name, before: toJson(before), after: toJson(updated) },
+      );
+      return clone(updated);
+    },
+
+    listFirmMemberships: async (firmId) =>
+      clone(Array.from(this.firmMembershipRows.values()).filter((m) => m.firmId === firmId && !m.deletedAt)),
+    listFirmMembershipsForUser: async (userId) =>
+      clone(Array.from(this.firmMembershipRows.values()).filter((m) => m.userId === userId && !m.deletedAt)),
+    createFirmMembership: async (input, actorUserId) => {
+      this.assertPlatformOperator(actorUserId, PERMISSIONS.PLATFORM_MANAGE);
+      const existing = Array.from(this.firmMembershipRows.values()).find(
+        (m) => m.firmId === input.firmId && m.userId === input.userId && !m.deletedAt,
+      );
+      if (existing) throw new DbError('CONFLICT', 'Firm membership already exists.', { userId: input.userId, firmId: input.firmId });
+      const timestamp = nowIso();
+      const id = (input as { id?: ID }).id ?? createId('firmmember');
+      const membership: FirmMembership = {
+        ...(clone(input) as Omit<FirmMembership, ManagedFields>),
+        id,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      this.firmMembershipRows.set(id, membership);
+      await this.appendPlatformAuditEntry(
+        { userId: actorUserId },
+        { action: 'CREATE', entity: 'FirmMembership', entityId: id, entityLabel: `${membership.userId} → ${membership.role}`, after: toJson(membership) },
+      );
+      return clone(membership);
+    },
+    updateFirmMembership: async (id, patch, actorUserId) => {
+      this.assertPlatformOperator(actorUserId, PERMISSIONS.PLATFORM_MANAGE);
+      const existing = this.firmMembershipRows.get(id);
+      if (!existing || existing.deletedAt) throw new DbError('NOT_FOUND', `FirmMembership ${id} not found.`, { id });
+      const before = clone(existing);
+      const sanitized = { ...(clone(patch) as Record<string, unknown>) };
+      delete sanitized.id;
+      delete sanitized.createdAt;
+      delete sanitized.updatedAt;
+      delete sanitized.deletedAt;
+      const updated: FirmMembership = { ...existing, ...sanitized, updatedAt: nowIso() } as FirmMembership;
+      this.firmMembershipRows.set(id, updated);
+      await this.appendPlatformAuditEntry(
+        { userId: actorUserId },
+        { action: 'UPDATE', entity: 'FirmMembership', entityId: id, before: toJson(before), after: toJson(updated) },
+      );
+      return clone(updated);
+    },
+    revokeFirmMembership: async (id, actorUserId, reason) => {
+      this.assertPlatformOperator(actorUserId, PERMISSIONS.PLATFORM_MANAGE);
+      const existing = this.firmMembershipRows.get(id);
+      if (!existing || existing.deletedAt) throw new DbError('NOT_FOUND', `FirmMembership ${id} not found.`, { id });
+      const before = clone(existing);
+      const updated: FirmMembership = { ...existing, status: 'revoked', updatedAt: nowIso() };
+      this.firmMembershipRows.set(id, updated);
+      await this.appendPlatformAuditEntry(
+        { userId: actorUserId },
+        { action: 'UPDATE', entity: 'FirmMembership', entityId: id, before: toJson(before), after: toJson(updated), reason: reason ?? 'revoked' },
+      );
+      return clone(updated);
+    },
+
+    listFirmSubscriptions: async (firmId) =>
+      clone(Array.from(this.firmSubscriptionRows.values()).filter((s) => s.firmId === firmId && !s.deletedAt)),
+    createFirmSubscription: async (input, actorUserId) => {
+      this.assertPlatformOperator(actorUserId, PERMISSIONS.PLATFORM_BILLING);
+      const timestamp = nowIso();
+      const id = (input as { id?: ID }).id ?? createId('firmsub');
+      const sub: FirmSubscription = {
+        ...(clone(input) as Omit<FirmSubscription, ManagedFields>),
+        id,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      this.firmSubscriptionRows.set(id, sub);
+      await this.appendPlatformAuditEntry(
+        { userId: actorUserId },
+        { action: 'CREATE', entity: 'FirmSubscription', entityId: id, entityLabel: sub.firmId, after: toJson(sub) },
+      );
+      return clone(sub);
+    },
+    updateFirmSubscription: async (id, patch, actorUserId) => {
+      this.assertPlatformOperator(actorUserId, PERMISSIONS.PLATFORM_BILLING);
+      const existing = this.firmSubscriptionRows.get(id);
+      if (!existing || existing.deletedAt) throw new DbError('NOT_FOUND', `FirmSubscription ${id} not found.`, { id });
+      const before = clone(existing);
+      const sanitized = { ...(clone(patch) as Record<string, unknown>) };
+      delete sanitized.id;
+      delete sanitized.createdAt;
+      delete sanitized.updatedAt;
+      delete sanitized.deletedAt;
+      const updated: FirmSubscription = { ...existing, ...sanitized, updatedAt: nowIso() } as FirmSubscription;
+      this.firmSubscriptionRows.set(id, updated);
+      await this.appendPlatformAuditEntry(
+        { userId: actorUserId },
+        { action: 'UPDATE', entity: 'FirmSubscription', entityId: id, before: toJson(before), after: toJson(updated) },
+      );
+      return clone(updated);
+    },
+
+    findPlatformAdminForUser: async (userId) => {
+      const found = Array.from(this.platformAdminRows.values()).find(
+        (a) => a.userId === userId && a.status === 'active' && !a.deletedAt,
+      );
+      return found ? clone(found) : null;
+    },
+    listPlatformAdmins: async () => clone(Array.from(this.platformAdminRows.values()).filter((a) => !a.deletedAt)),
+    createPlatformAdmin: async (input, actorUserId) => {
+      this.assertPlatformOperator(actorUserId, PERMISSIONS.PLATFORM_MANAGE);
+      const timestamp = nowIso();
+      const id = (input as { id?: ID }).id ?? createId('platadmin');
+      const admin: PlatformAdmin = {
+        ...(clone(input) as Omit<PlatformAdmin, ManagedFields>),
+        id,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      this.platformAdminRows.set(id, admin);
+      await this.appendPlatformAuditEntry(
+        { userId: actorUserId },
+        { action: 'CREATE', entity: 'PlatformAdmin', entityId: id, entityLabel: admin.userId, after: toJson(admin) },
+      );
+      return clone(admin);
+    },
+    updatePlatformAdmin: async (id, patch, actorUserId) => {
+      this.assertPlatformOperator(actorUserId, PERMISSIONS.PLATFORM_MANAGE);
+      const existing = this.platformAdminRows.get(id);
+      if (!existing || existing.deletedAt) throw new DbError('NOT_FOUND', `PlatformAdmin ${id} not found.`, { id });
+      const before = clone(existing);
+      const sanitized = { ...(clone(patch) as Record<string, unknown>) };
+      delete sanitized.id;
+      delete sanitized.createdAt;
+      delete sanitized.updatedAt;
+      delete sanitized.deletedAt;
+      const updated: PlatformAdmin = { ...existing, ...sanitized, updatedAt: nowIso() } as PlatformAdmin;
+      this.platformAdminRows.set(id, updated);
+      await this.appendPlatformAuditEntry(
+        { userId: actorUserId },
+        { action: 'UPDATE', entity: 'PlatformAdmin', entityId: id, before: toJson(before), after: toJson(updated) },
+      );
+      return clone(updated);
+    },
+
+    appendPlatformAudit: async (entry) => {
+      // Only platform operators or the system may append to the platform trail.
+      this.assertPlatformOperator(entry.actorUserId === 'system' ? 'system' : entry.actorUserId, PERMISSIONS.PLATFORM_AUDIT_READ);
+      return this.appendPlatformAuditEntry(
+        { userId: entry.actorUserId, email: entry.actorEmail, role: entry.actorRole },
+        entry,
+      );
+    },
+    listPlatformAudit: async (options = {}) => {
+      const rows = [...this.platformAuditLogs].sort((a, b) => b.sequence - a.sequence);
+      return paginate(clone(rows), options as ListOptions<PlatformAuditLog>);
+    },
+    verifyPlatformChain: async () => {
+      const chain = [...this.platformAuditLogs].sort((a, b) => a.sequence - b.sequence);
+      const brokenAt: { sequence: number; reason: string }[] = [];
+      let expectedPrevious: Sha256Hex = GENESIS_HASH;
+      let expectedSequence = 1;
+      for (const log of chain) {
+        if (log.sequence !== expectedSequence) {
+          brokenAt.push({ sequence: log.sequence, reason: 'sequence_gap' });
+        }
+        if (log.previousHash !== expectedPrevious) {
+          brokenAt.push({ sequence: log.sequence, reason: 'broken_link' });
+        }
+        const recomputed = await computeAuditHash({
+          previousHash: log.previousHash,
+          sequence: log.sequence,
+          tenantId: 'platform' as TenantId,
+          timestamp: log.timestamp,
+          actorUserId: String(log.actorUserId),
+          action: log.action,
+          entity: log.entity,
+          entityId: log.entityId,
+          before: log.before,
+          after: log.after,
+        });
+        if (recomputed !== log.hash) {
+          brokenAt.push({ sequence: log.sequence, reason: 'hash_mismatch' });
+        }
+        expectedPrevious = log.hash;
+        expectedSequence = log.sequence + 1;
+      }
+      return { valid: brokenAt.length === 0, entriesChecked: chain.length, brokenAt };
+    },
+  };
+
   /* ---------------------------- lifecycle ------------------------------- */
 
   async init(): Promise<void> {
@@ -1429,6 +1834,26 @@ export class BraboDbStore implements DatabaseStore {
     this.transactions.hydrate(state.transactions ?? []);
     this.fiduciaries.hydrate(state.fiduciaries ?? []);
     this.documents.hydrate(state.documents ?? []);
+
+    this.firmRows.clear();
+    for (const f of state.firms ?? []) this.firmRows.set(f.id, f);
+    this.firmMembershipRows.clear();
+    for (const m of state.firmMemberships ?? []) this.firmMembershipRows.set(m.id, m);
+    this.planRows.clear();
+    for (const p of state.plans ?? []) this.planRows.set(p.id, p);
+    this.firmSubscriptionRows.clear();
+    for (const s of state.firmSubscriptions ?? []) this.firmSubscriptionRows.set(s.id, s);
+    this.platformAdminRows.clear();
+    for (const a of state.platformAdmins ?? []) this.platformAdminRows.set(a.id, a);
+    this.platformAuditLogs.length = 0;
+    for (const l of state.platformAuditLogs ?? []) this.platformAuditLogs.push(l);
+    this.platformAuditHead = null;
+    for (const l of this.platformAuditLogs) {
+      if (!this.platformAuditHead || l.sequence > this.platformAuditHead.sequence) {
+        this.platformAuditHead = { hash: l.hash, sequence: l.sequence };
+      }
+    }
+
     this.auditLogger.hydrate(state.auditLogs ?? []);
   }
 
@@ -1448,6 +1873,12 @@ export class BraboDbStore implements DatabaseStore {
       documents: this.documents.snapshot(),
       sessions: Array.from(this.sessionRows.values()),
       auditLogs: this.auditLogger.snapshot(),
+      firms: Array.from(this.firmRows.values()),
+      firmMemberships: Array.from(this.firmMembershipRows.values()),
+      plans: Array.from(this.planRows.values()),
+      firmSubscriptions: Array.from(this.firmSubscriptionRows.values()),
+      platformAdmins: Array.from(this.platformAdminRows.values()),
+      platformAuditLogs: [...this.platformAuditLogs],
     };
   }
 
@@ -1481,6 +1912,13 @@ export class BraboDbStore implements DatabaseStore {
     this.transactions.hydrate([]);
     this.fiduciaries.hydrate([]);
     this.documents.hydrate([]);
+    this.firmRows.clear();
+    this.firmMembershipRows.clear();
+    this.planRows.clear();
+    this.firmSubscriptionRows.clear();
+    this.platformAdminRows.clear();
+    this.platformAuditLogs.length = 0;
+    this.platformAuditHead = null;
     this.auditLogger.hydrate([]);
     await this.adapter.clear();
   }

@@ -26,6 +26,8 @@ const TOKEN = process.env.BRABO_API_TOKEN || 'brabo-dev-token';
 const JWT_SECRET = process.env.BRABO_JWT_SECRET || TOKEN + '-jwt';
 /** Internal OCR microservice (FastAPI + PaddleOCR) — never exposed publicly. */
 const OCR_SERVICE_URL = process.env.OCR_SERVICE_URL || 'http://localhost:8000';
+/** Shared secret for the internal OCR endpoint (defense in depth). */
+const OCR_SERVICE_TOKEN = process.env.OCR_SERVICE_TOKEN || '';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -38,6 +40,19 @@ app.use(express.json({ limit: '2mb' }));
 
 // Auth: shared token OR JWT; /api/auth/* is public.
 app.use('/api', authMiddleware(TOKEN, JWT_SECRET));
+
+// JWT firm-scope enrichment (after shared-token auth, before route handlers):
+// exposes req.jwtRole / req.jwtFirmId for the platform & firm APIs.
+app.use('/api', (req, _res, next) => {
+  const auth = req.get('authorization') || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  const payload = token ? verifyJwt(token, JWT_SECRET) : null;
+  if (payload) {
+    req.jwtRole = payload.role;
+    req.jwtFirmId = payload.firmId || null;
+  }
+  next();
+});
 
 app.get('/health', async (_req, res) => {
   try {
@@ -60,7 +75,11 @@ app.use('/api/ocr', (req, res) => {
       port: target.port || 80,
       path,
       method: req.method,
-      headers: { ...req.headers, host: target.host },
+      headers: {
+        ...req.headers,
+        host: target.host,
+        ...(OCR_SERVICE_TOKEN ? { 'x-ocr-token': OCR_SERVICE_TOKEN } : {}),
+      },
     },
     (proxyRes) => {
       res.writeHead(proxyRes.statusCode, proxyRes.headers);
@@ -118,6 +137,24 @@ function tenantToCompany(t) {
     fiduciaryItaaNumber: '',
     fiduciaryEmail: '',
   };
+}
+
+function requireRole(prefix) {
+  return (req, res, next) => {
+    if (!req.jwtRole || !req.jwtRole.startsWith(prefix)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    next();
+  };
+}
+
+// Firm routes: require a JWT carrying firmId (role FIRM_* or firm-scoped token).
+// A plain shared-token request without a JWT is rejected (403).
+function requireFirmAccess(req, res, next) {
+  const firmRole = req.jwtRole && req.jwtRole.startsWith('FIRM_');
+  if (!firmRole && !req.jwtFirmId) return res.status(403).json({ error: 'Forbidden' });
+  if (!req.jwtFirmId) return res.status(403).json({ error: 'Forbidden' });
+  next();
 }
 
 // ---------------------------------------------------------------------------
@@ -434,6 +471,523 @@ app.put('/api/ledger/:tenantId', async (req, res) => {
     res.status(500).json({ error: String(e) });
   } finally {
     client.release();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Platform API — firms (fiduciaires), plans, subscriptions, audit (Super Admin)
+// All platform routes require a JWT whose role starts with 'PLATFORM_'.
+// ---------------------------------------------------------------------------
+app.get('/api/platform/overview', requireRole('PLATFORM_'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const [firms, clients, mrr] = await Promise.all([
+      client.query('SELECT status, COUNT(*)::int AS n FROM firms GROUP BY status'),
+      client.query('SELECT COUNT(*)::int AS n FROM tenants WHERE firm_id IS NOT NULL'),
+      client.query(
+        `SELECT COALESCE(SUM(p.price_monthly_eur), 0)::numeric AS total
+         FROM firms f JOIN plans p ON p.id = f.plan_id
+         WHERE f.status = 'active'`,
+      ),
+    ]);
+    const byStatus = {};
+    for (const r of firms.rows) byStatus[r.status] = r.n;
+    res.json({
+      firmsTotal: firms.rows.reduce((s, r) => s + r.n, 0),
+      firmsActive: byStatus.active || 0,
+      firmsTrial: byStatus.trial || 0,
+      clientsTotal: clients.rows[0].n,
+      mrrEstimate: Number(mrr.rows[0].total),
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/platform/firms', requireRole('PLATFORM_'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const r = await client.query(
+      `SELECT f.*, p.name AS plan_name, COALESCE(tc.client_count, 0) AS client_count
+       FROM firms f
+       LEFT JOIN plans p ON p.id = f.plan_id
+       LEFT JOIN (SELECT firm_id, COUNT(*)::int AS client_count FROM tenants WHERE firm_id IS NOT NULL GROUP BY firm_id) tc ON tc.firm_id = f.id
+       ORDER BY f.created_at DESC`,
+    );
+    res.json({ firms: r.rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/platform/firms', requireRole('PLATFORM_'), async (req, res) => {
+  const b = req.body || {};
+  if (!b.name || !b.bceDigits) {
+    return res.status(400).json({ error: 'name et bceDigits requis' });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const ins = await client.query(
+      `INSERT INTO firms (name, itaa_firm_number, bce_digits, vat_number, street, number, box, postal_code, city,
+         country, brand, plan_id, trial_ends_at, created_by_platform_admin_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'Belgique',$10,$11,$12,$13) RETURNING *`,
+      [b.name, b.itaaFirmNumber || null, b.bceDigits, b.vatNumber || null,
+       b.address?.street || null, b.address?.number || null, b.address?.box || null,
+       b.address?.postalCode || null, b.address?.city || null,
+       JSON.stringify(b.brand || {}), b.planId || null,
+       b.trialDays ? new Date(Date.now() + Number(b.trialDays) * 86400000) : null,
+       req.userId || null],
+    );
+    const firm = ins.rows[0];
+    let adminUserId = null;
+    if (b.adminEmail) {
+      const email = String(b.adminEmail).toLowerCase().trim();
+      const existing = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+      if (existing.rows[0]) {
+        adminUserId = existing.rows[0].id;
+      } else {
+        const u = await client.query(
+          `INSERT INTO users (email, first_name, last_name, display_name) VALUES ($1,$2,$3,$4) RETURNING id`,
+          [email, b.adminFirstName || '', b.adminLastName || '', `${b.adminFirstName || ''} ${b.adminLastName || ''}`.trim()],
+        );
+        adminUserId = u.rows[0].id;
+      }
+      await client.query(
+        `INSERT INTO firm_memberships (firm_id, user_id, role) VALUES ($1,$2,'FIRM_ADMIN') ON CONFLICT DO NOTHING`,
+        [firm.id, adminUserId],
+      );
+    }
+    await client.query('COMMIT');
+    res.status(201).json({ firm, adminUserId });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/platform/firms/:id', requireRole('PLATFORM_'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const r = await client.query(
+      `SELECT f.*, p.name AS plan_name, COALESCE(tc.client_count, 0) AS client_count
+       FROM firms f
+       LEFT JOIN plans p ON p.id = f.plan_id
+       LEFT JOIN (SELECT firm_id, COUNT(*)::int AS client_count FROM tenants WHERE firm_id IS NOT NULL GROUP BY firm_id) tc ON tc.firm_id = f.id
+       WHERE f.id = $1`,
+      [req.params.id],
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: 'Firm introuvable' });
+    res.json({ firm: r.rows[0] });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  } finally {
+    client.release();
+  }
+});
+
+app.patch('/api/platform/firms/:id', requireRole('PLATFORM_'), async (req, res) => {
+  const b = req.body || {};
+  const client = await pool.connect();
+  try {
+    const cur = await client.query('SELECT * FROM firms WHERE id = $1', [req.params.id]);
+    if (!cur.rows[0]) return res.status(404).json({ error: 'Firm introuvable' });
+    const firm = cur.rows[0];
+    const sets = [];
+    const values = [];
+    if (b.name !== undefined) { sets.push(`name = $${sets.length + 1}`); values.push(b.name); }
+    if (b.brand !== undefined) {
+      sets.push(`brand = $${sets.length + 1}`);
+      values.push(JSON.stringify({ ...(firm.brand || {}), ...b.brand }));
+    }
+    if (b.status !== undefined) { sets.push(`status = $${sets.length + 1}`); values.push(b.status); }
+    if (b.planId !== undefined) { sets.push(`plan_id = $${sets.length + 1}`); values.push(b.planId); }
+    if (sets.length === 0) return res.json({ firm });
+    sets.push('updated_at = now()');
+    const r = await client.query(
+      `UPDATE firms SET ${sets.join(', ')} WHERE id = $${values.length + 1} RETURNING *`,
+      [...values, req.params.id],
+    );
+    res.json({ firm: r.rows[0] });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/platform/firms/:id/status', requireRole('PLATFORM_'), async (req, res) => {
+  const { status } = req.body || {};
+  if (!status) return res.status(400).json({ error: 'status requis' });
+  const client = await pool.connect();
+  try {
+    const r = await client.query(
+      'UPDATE firms SET status = $2, updated_at = now() WHERE id = $1 RETURNING *',
+      [req.params.id, status],
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: 'Firm introuvable' });
+    res.json({ firm: r.rows[0] });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/platform/plans', requireRole('PLATFORM_'), async (_req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM plans ORDER BY price_monthly_eur ASC, created_at ASC');
+    res.json({ plans: r.rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+app.post('/api/platform/plans', requireRole('PLATFORM_'), async (req, res) => {
+  const b = req.body || {};
+  if (!b.slug || !b.name) return res.status(400).json({ error: 'slug et name requis' });
+  try {
+    const r = await pool.query(
+      `INSERT INTO plans (slug, name, price_monthly_eur, price_per_dossier_eur, max_dossiers, max_users, features)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [b.slug, b.name, b.priceMonthlyEur ?? 0, b.pricePerDossierEur ?? 0,
+       b.maxDossiers ?? null, b.maxUsers ?? 5, JSON.stringify(b.features || [])],
+    );
+    res.status(201).json({ plan: r.rows[0] });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+app.patch('/api/platform/plans/:id', requireRole('PLATFORM_'), async (req, res) => {
+  const b = req.body || {};
+  const client = await pool.connect();
+  try {
+    const cur = await client.query('SELECT * FROM plans WHERE id = $1', [req.params.id]);
+    if (!cur.rows[0]) return res.status(404).json({ error: 'Plan introuvable' });
+    const sets = [];
+    const values = [];
+    if (b.slug !== undefined) { sets.push(`slug = $${sets.length + 1}`); values.push(b.slug); }
+    if (b.name !== undefined) { sets.push(`name = $${sets.length + 1}`); values.push(b.name); }
+    if (b.priceMonthlyEur !== undefined) { sets.push(`price_monthly_eur = $${sets.length + 1}`); values.push(b.priceMonthlyEur); }
+    if (b.pricePerDossierEur !== undefined) { sets.push(`price_per_dossier_eur = $${sets.length + 1}`); values.push(b.pricePerDossierEur); }
+    if (b.maxDossiers !== undefined) { sets.push(`max_dossiers = $${sets.length + 1}`); values.push(b.maxDossiers); }
+    if (b.maxUsers !== undefined) { sets.push(`max_users = $${sets.length + 1}`); values.push(b.maxUsers); }
+    if (b.features !== undefined) { sets.push(`features = $${sets.length + 1}`); values.push(JSON.stringify(b.features)); }
+    if (b.isActive !== undefined) { sets.push(`is_active = $${sets.length + 1}`); values.push(b.isActive); }
+    if (sets.length === 0) return res.json({ plan: cur.rows[0] });
+    sets.push('updated_at = now()');
+    const r = await client.query(
+      `UPDATE plans SET ${sets.join(', ')} WHERE id = $${values.length + 1} RETURNING *`,
+      [...values, req.params.id],
+    );
+    res.json({ plan: r.rows[0] });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/platform/firms/:id/subscriptions', requireRole('PLATFORM_'), async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT s.*, p.name AS plan_name FROM firm_subscriptions s
+       JOIN plans p ON p.id = s.plan_id
+       WHERE s.firm_id = $1 ORDER BY s.created_at DESC`,
+      [req.params.id],
+    );
+    res.json({ subscriptions: r.rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+app.post('/api/platform/firms/:id/subscriptions', requireRole('PLATFORM_'), async (req, res) => {
+  const { planId, dossierCount } = req.body || {};
+  if (!planId) return res.status(400).json({ error: 'planId requis' });
+  const client = await pool.connect();
+  try {
+    const plan = await client.query('SELECT id FROM plans WHERE id = $1', [planId]);
+    if (!plan.rows[0]) return res.status(404).json({ error: 'Plan introuvable' });
+    const firm = await client.query('SELECT id FROM firms WHERE id = $1', [req.params.id]);
+    if (!firm.rows[0]) return res.status(404).json({ error: 'Firm introuvable' });
+    const r = await client.query(
+      `INSERT INTO firm_subscriptions (firm_id, plan_id, status, dossier_count, current_period_start, current_period_end)
+       VALUES ($1,$2,'trialing',$3, CURRENT_DATE, CURRENT_DATE + INTERVAL '1 month') RETURNING *`,
+      [req.params.id, planId, dossierCount ?? 0],
+    );
+    res.status(201).json({ subscription: r.rows[0] });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/platform/audit', requireRole('PLATFORM_'), async (_req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM platform_audit_logs ORDER BY sequence DESC LIMIT 200');
+    res.json({ logs: r.rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+app.get('/api/platform/health', requireRole('PLATFORM_'), async (_req, res) => {
+  try {
+    const [f, p, c] = await Promise.all([
+      pool.query('SELECT COUNT(*)::int AS n FROM firms'),
+      pool.query('SELECT COUNT(*)::int AS n FROM plans'),
+      pool.query('SELECT COUNT(*)::int AS n FROM tenants WHERE firm_id IS NOT NULL'),
+    ]);
+    res.json({ ok: true, firms: f.rows[0].n, plans: p.rows[0].n, clients: c.rows[0].n });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Firm API — team & clients (fiduciaire scope, firmId from JWT payload)
+// ---------------------------------------------------------------------------
+app.get('/api/firm/team', requireFirmAccess, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT fm.id, fm.firm_id, fm.role, fm.status, fm.extra_permissions, fm.denied_permissions,
+              u.id AS user_id, u.email, u.display_name, u.first_name, u.last_name
+       FROM firm_memberships fm
+       JOIN users u ON u.id = fm.user_id
+       WHERE fm.firm_id = $1
+       ORDER BY fm.created_at ASC`,
+      [req.jwtFirmId],
+    );
+    res.json({ team: r.rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+app.get('/api/firm/clients', requireFirmAccess, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM tenants WHERE firm_id = $1 ORDER BY created_at DESC', [req.jwtFirmId]);
+    res.json({ clients: r.rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+app.post('/api/firm/clients', requireFirmAccess, async (req, res) => {
+  const b = req.body || {};
+  if (!b.name || !b.bceDigits) {
+    return res.status(400).json({ error: 'name et bceDigits requis' });
+  }
+  const client = await pool.connect();
+  try {
+    const dup = await client.query('SELECT id FROM tenants WHERE bce_digits = $1', [b.bceDigits]);
+    if (dup.rows[0]) return res.status(409).json({ error: 'Un client avec ce numéro BCE existe déjà' });
+    await client.query('BEGIN');
+    const t = await client.query(
+      `INSERT INTO tenants (name, legal_form, bce_digits, vat_number, vat_regime, city, postal_code, firm_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [b.name, b.legalForm || 'SRL', b.bceDigits, b.vatNumber || null, b.vatRegime || 'quarterly',
+       b.city || null, b.postalCode || null, req.jwtFirmId],
+    );
+    const tenant = t.rows[0];
+    if (b.ownerEmail) {
+      const email = String(b.ownerEmail).toLowerCase().trim();
+      const u = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+      let userId = u.rows[0]?.id;
+      if (!userId) {
+        const ins = await client.query(
+          `INSERT INTO users (email, first_name, last_name, display_name) VALUES ($1,$2,$3,$4) RETURNING id`,
+          [email, b.ownerFirstName || '', b.ownerLastName || '', `${b.ownerFirstName || ''} ${b.ownerLastName || ''}`.trim()],
+        );
+        userId = ins.rows[0].id;
+      }
+      await client.query(
+        `INSERT INTO memberships (tenant_id, user_id, role) VALUES ($1,$2,'OWNER') ON CONFLICT DO NOTHING`,
+        [tenant.id, userId],
+      );
+    }
+    await client.query('COMMIT');
+    res.status(201).json({ client: tenant });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  } finally {
+    client.release();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// VIES — real intra-EU VAT validation (European Commission SOAP, public, no key)
+// ---------------------------------------------------------------------------
+const VIES_ENDPOINT = 'https://ec.europa.eu/taxation_customs/vies/services/checkVatService';
+
+async function callVies(countryCode, vatNumber) {
+  const envelope = `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:urn="urn:ec.europa.eu:taxud:vies:services:checkVat:types">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <urn:checkVat>
+      <urn:countryCode>${countryCode.toUpperCase()}</urn:countryCode>
+      <urn:vatNumber>${vatNumber}</urn:vatNumber>
+    </urn:checkVat>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+
+  const resp = await fetch(VIES_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/xml; charset=utf-8', SOAPAction: '' },
+    body: envelope,
+    signal: AbortSignal.timeout(15_000),
+  });
+  const text = await resp.text();
+  if (!resp.ok) return { ok: false, error: `VIES HTTP ${resp.status}` };
+
+  // Namespace-agnostic extraction: tags arrive as <ns2:valid>, <urn:valid> or <valid>.
+  const grab = (tag) =>
+    (text.match(new RegExp(`<(?:[\\w-]+:)?${tag}[^>]*>([^<]*)<`, 'i')) || [])[1]?.trim() || null;
+  const rawValid = grab('valid');
+  return {
+    ok: true,
+    isValid: rawValid === 'true' || rawValid === '1',
+    name: grab('name'),
+    address: grab('address'),
+    countryCode: (grab('countryCode') || countryCode).toUpperCase(),
+    vatNumber: grab('vatNumber') || vatNumber,
+    requestDate: grab('requestDate'),
+    error: grab('faultstring'),
+  };
+}
+
+app.post('/api/vies/validate', async (req, res) => {
+  const { countryCode, vatNumber } = req.body || {};
+  if (!countryCode || !vatNumber) {
+    return res.status(400).json({ error: 'countryCode et vatNumber requis' });
+  }
+  try {
+    const result = await callVies(String(countryCode), String(vatNumber));
+    if (!result.ok) return res.status(502).json({ error: result.error });
+    res.json(result);
+  } catch (e) {
+    console.error(e);
+    res.status(502).json({ error: `VIES injoignable: ${e.message}` });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Counterparty master (clients/suppliers enriched from VIES + KBO)
+// ---------------------------------------------------------------------------
+app.get('/api/clients/:tenantId', async (req, res) => {
+  try {
+    const client = await pool.connect();
+    try {
+      const tenant = await findTenantByBce(client, req.params.tenantId);
+      if (!tenant) return res.status(404).json({ error: 'Tenant introuvable' });
+      const r = await client.query(
+        'SELECT * FROM clients WHERE tenant_id = $1 ORDER BY updated_at DESC',
+        [tenant.id],
+      );
+      res.json({ clients: r.rows });
+    } finally {
+      client.release();
+    }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+app.post('/api/clients', async (req, res) => {
+  const { tenantId, client: c } = req.body || {};
+  if (!tenantId || !c?.name) return res.status(400).json({ error: 'tenantId et client.name requis' });
+  const conn = await pool.connect();
+  try {
+    const tenant = await findTenantByBce(conn, String(tenantId));
+    if (!tenant) return res.status(404).json({ error: 'Tenant introuvable' });
+
+    const vat = (c.vatNumber || '').replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+    const bce = (c.bceNumber || '').replace(/\D/g, '');
+    // Upsert on (tenant_id, bce_digits or vat_number).
+    let existing = null;
+    if (bce) {
+      const dup = await conn.query(
+        'SELECT id FROM clients WHERE tenant_id = $1 AND bce_digits = $2',
+        [tenant.id, bce],
+      );
+      existing = dup.rows[0]?.id;
+    } else if (vat) {
+      const dup = await conn.query(
+        'SELECT id FROM clients WHERE tenant_id = $1 AND vat_number = $2',
+        [tenant.id, vat],
+      );
+      existing = dup.rows[0]?.id;
+    }
+
+    const fields = [
+      c.name, tenant.id, c.country || 'Belgique', vat || null, bce || null,
+      c.street || null, c.number || null, c.box || null, c.postalCode || null,
+      c.city || null, c.email || null, c.peppolEndpointId || null,
+      c.registryStatus || null, c.legalForm || null,
+      Number.isFinite(c.riskScore) ? c.riskScore : null,
+      JSON.stringify(c.riskFlags || []),
+      c.kycLevel || 'none',
+    ];
+    let row;
+    if (existing) {
+      await conn.query('BEGIN');
+      const upd = await conn.query(
+        `UPDATE clients SET name=$1, country=$2, vat_number=$3, bce_digits=$4, street=$5, number=$6,
+           box=$7, postal_code=$8, city=$9, email=$10, peppol_endpoint_id=$11, registry_status=$12,
+           legal_form=$13, risk_score=$14, risk_flags=$15, kyc_level=$16, enriched_at=now(), updated_at=now()
+         WHERE tenant_id=$17 AND id=$18 RETURNING *`,
+        [...fields, tenant.id, existing],
+      );
+      row = upd.rows[0];
+      await conn.query('COMMIT');
+    } else {
+      await conn.query('BEGIN');
+      const id = 'cli-' + Date.now();
+      const ins = await conn.query(
+        `INSERT INTO clients (id, name, tenant_id, country, vat_number, bce_digits, street, number, box,
+           postal_code, city, email, peppol_endpoint_id, registry_status, legal_form, risk_score, risk_flags, kyc_level, enriched_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,now()) RETURNING *`,
+        [id, ...fields],
+      );
+      row = ins.rows[0];
+      await conn.query('COMMIT');
+    }
+    res.status(existing ? 200 : 201).json({ client: row });
+  } catch (e) {
+    await conn.query('ROLLBACK').catch(() => {});
+    console.error(e);
+    res.status(500).json({ error: String(e) });
+  } finally {
+    conn.release();
   }
 });
 

@@ -54,10 +54,11 @@ KW_INVOICE_NO = re.compile(
     r"|factuurnummer|factuurnr\b|factuur\s*(?:nr\.?|nummer)"
     r"|invoice\s*(?:n[°o]?|no\.?|number|#|num)"
     r"|rechnung|document\s*(?:n[°o]?|no\.?|num)"
-    r"|ref(?:[ée]rence)?\s*(?:n[°o]?|\.)?"
+    r"|ticket\s*(?:n[°o]?|no\.?|num|#)?|bon\s*(?:n[°o]?|num)?"
+    r"|ref(?:[ée]rence)?\s*(?:n[°o]?|\.)?|r[ée]f(?:[ée]rence)?\s*(?:n[°o]?|\.)?"
     r"|nr\.?\s*:|num[eé]ro|n[°o]\.?\s*:"
     r"|bestelbon\s*(?:nr\.?)?"
-    r")\b",
+    r")(?![A-Za-z])",
     re.IGNORECASE,
 )
 
@@ -65,20 +66,20 @@ KW_DATE = re.compile(
     r"\b(?:"
     r"facture\s*(?:du|date)|invoice\s*date|issue\s*date|factuurdatum|factuur\s*van"
     r"|date\s*(?:de\s*(?:facturation|la\s*facture))?|datum"
-    r"|e[ée]ch[ée]ance|vervaldatum|due\s*date|payment\s*date|betaaldatum"
+    r"|[eé]ch[ée]ance|vervaldatum|due\s*date|payment\s*date|betaaldatum"
     r"|dat[ée]e\s*du"
     r")\b",
     re.IGNORECASE,
 )
 
 KW_DUE_DATE = re.compile(
-    r"\b(?:e[ée]ch[ée]ance|vervaldatum|due\s*date|betaaldatum|te\s*betalen\s*v[oô]or)\b",
+    r"\b(?:[eé]ch[ée]ance|vervaldatum|due\s*date|betaaldatum|te\s*betalen\s*v[oô]or)\b",
     re.IGNORECASE,
 )
 
 KW_TOTAL_INCL_STRONG = re.compile(
     r"\b(?:"
-    r"total\s*(?:tvac|ttc|t\.?v\.?a\.?c|general|g[eé]n[eé]ral|a\s*payer|net\s*[aà]\s*payer)"
+    r"total\s*(?:tvac|ttc|t\.?v\.?a\.?c|general|g[eé]n[eé]ral|[aà]?\s*payer|net\s*[aà]\s*payer)"
     r"|totaal\s*(?:incl|te\s*betalen|verschuldigd|eindtotaal)"
     r"|amount\s*(?:due|payable|to\s*pay)|total\s*(?:due|payable|to\s*pay)"
     r"|grand\s*total|balance\s*due|net\s*total|eindtotaal"
@@ -102,7 +103,9 @@ KW_TOTAL_EXCL = re.compile(
     re.IGNORECASE,
 )
 
-KW_VAT = re.compile(r"\b(?:tva|btw|vat|omzetbelasting|taxe)\b", re.IGNORECASE)
+# (?![A-Za-z]) instead of \b: "TVA21%" (merged by OCR) must still match, while
+# "TVAC"/"HTVA"/"BTW-nummer" (letter after the keyword) must not.
+KW_VAT = re.compile(r"\b(?:tva|btw|vat|omzetbelasting|taxe)(?![A-Za-z])", re.IGNORECASE)
 
 KW_RATE = re.compile(r"(\d{1,2})\s*%")
 
@@ -148,9 +151,26 @@ JUNK_HEADER_RE = re.compile(
 
 LEGAL_FORM_RE = re.compile(
     r"\b(?:SA|NV|BV|SRL|BVBA|SPRL|SPRLU|SCRL|SNC|SCS|CV|VOF|SNC|ASBL|VZW|SAS|SARL|EURL|EURL|GmbH|"
-    r"AG|Ltd|Ltd\.|PLC|LLC|Inc\.?|Co\.?|SCRIS|SC|Stichting|VZW|Comm\.?V|Gcv|CommV|SComm)\b",
+    r"AG|Ltd|Ltd\.|PLC|LLC|Inc\.?|Co\.?|SCRIS|SC|Stichting|VZW|Comm\.?V|Gcv|CommV|SComm|SE|AB|ApS|Oy|"
+    r"OÜ|SIA|K/S|KG|UG|S\.A\.|N\.V\.|B\.V\.|B\.V|S\.R\.L\.|S\.A\.R\.L\.|S\.P\.R\.L\.|S\.A\.S\.)\b",
     re.IGNORECASE,
 )
+
+# Non-supplier content: shipping/labelling disclaimers, boilerplate, contact noise.
+DISCLAIMER_RE = re.compile(
+    r"\b(?:provided\s+by|powered\s+by|supplied\s+by|served\s+by|issued\s+by|prepared\s+by|created\s+by|"
+    r"generated\s+by|produced\s+by|this\s+(?:invoice|document|receipt|billing|email)[^.,]{0,30}(?:is|was)|"
+    r"this\s+is\s+an?\s+electronic|for\s+more\s+information|lorem\s+ipsum|imprint|legal\s+notice|"
+    r"made\s+with|invoice\s+generated|customer\s+service|page\s+\d+)\b",
+    re.IGNORECASE,
+)
+
+# Label words that must never be mistaken for an invoice number / reference.
+INVOICE_LABEL_WORDS = {
+    'fiscal', 'fiscale', 'invoice', 'facture', 'devis', 'quote', 'date', 'reference', 'référence',
+    'numero', 'numéro', 'normal', 'belge', 'commerciale', 'client', 'fournisseur', 'document',
+    'doc', 'no', 'nr', 'num', 'ref', 'een', 'the', 'this', 'del', 'sur', 'courante', 'totale',
+}
 
 MONEY_TOKEN_RE = re.compile(r"\d[\d\s.,'\u00a0\u202f]*\d|\d")
 
@@ -212,6 +232,43 @@ def rightmost_amount(line: OcrLine) -> tuple[float, str] | None:
     if not amounts:
         return None
     return amounts[-1]
+
+
+# A dotted-leader label ends with dots/spaces/dashes (or a merged "%").
+LABEL_END_RE = re.compile(r"[%.\s\-–—]+$")
+
+
+def line_amounts_with_follow(line: OcrLine, all_lines: list[OcrLine]) -> list[tuple[float, str]]:
+    """Amounts on the line, or on the next line when dotted leaders split them.
+
+    OCR engines frequently split "<label> ....... 245,00" into two lines
+    ("<label> ......." and "245,00"). We only follow when the current line
+    *looks like* a label (ends with dots/…), and only accept a next line that
+    is a lone money value — so "TVA BE 0202.239.951" never steals the amount
+    of the unrelated "Facture N° … 2026-9912" line below it. Bare 1-2 digit
+    tokens are rates, not money, and never count as "own amounts".
+    """
+    amounts = [a for a in line_amounts(line) if not re.fullmatch(r"\d{1,2}", a[1])]
+    if amounts:
+        return amounts
+    if not LABEL_END_RE.search(line.text):
+        return []
+
+    idx = all_lines.index(line)
+    for nxt in all_lines[idx + 1 : idx + 4]:
+        if nxt.y_center - line.y_center > line.h * 2.5:
+            break
+        if (
+            KW_TOTAL_EXCL.search(nxt.text)
+            or KW_TOTAL_INCL_STRONG.search(nxt.text)
+            or KW_TOTAL_INCL_WEAK.search(nxt.text)
+            or KW_VAT.search(nxt.text)
+        ):
+            continue  # never steal from another labelled total line
+        nxt_amounts = [a for a in line_amounts(nxt) if not re.fullmatch(r"\d{1,2}", a[1])]
+        if len(nxt_amounts) == 1 and re.fullmatch(r"[\d.,\s\u00a0€%]*", nxt.text):
+            return nxt_amounts
+    return []
 
 
 # ---------------------------------------------------------------------------
@@ -297,7 +354,9 @@ def parse_invoice(lines: list[OcrLine]) -> dict:
 
     # ---------------- VAT / BCE numbers (whole text) ------------------------
     for line in lines:
-        for m in VAT_CANDIDATE_RE.finditer(line.text):
+        # An IBAN is BE + 2 + 4xN digits: strip it so it is never read as a VAT number.
+        text = IBAN_RE.sub(" ", line.text)
+        for m in VAT_CANDIDATE_RE.finditer(text):
             cc = m.group(1).upper()
             digits = clean_digits(m.group(2))
             conf = max(0.5, min(line.score * 1.05, 0.98))
@@ -342,13 +401,20 @@ def parse_invoice(lines: list[OcrLine]) -> dict:
         if not m:
             continue
         tail = line.text[m.end():].lstrip(" :#—–-")
+        tail = re.sub(r"^[^\w]+", "", tail)  # drop leading symbols ("°PROX…" -> "PROX…")
         tail = re.split(r"\s{2,}|\t", tail)[0]
         if not tail:
             continue
         tail = tail.split()[0] if tail.split() else tail
         if re.fullmatch(r"[\d.,%]+", tail) and "," in tail:
             continue  # looks like an amount, not a number
+        if re.search(r"\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}|\d{4}[/.\-]\d{1,2}[/.\-]\d{1,2}", tail):
+            continue  # a date, not an invoice number
         tail = tail.strip(" .:;")
+        if tail.lower() in INVOICE_LABEL_WORDS:
+            continue  # "fiscal", "date", "invoice"… are labels, not references
+        if not re.search(r"\d", tail) and not re.search(r"\b[A-Z]{2,}[-_]", tail):
+            continue  # a real reference always carries a digit (or an upper-coded dash code)
         if 2 <= len(tail) <= 40 and not tail.isdigit():
             put("invoiceNumber", tail, min(line.score * 1.05, 0.98))
             break
@@ -374,7 +440,7 @@ def parse_invoice(lines: list[OcrLine]) -> dict:
     # ---------------- Payment terms ------------------------------------------
     for line in lines:
         m = re.search(
-            r"\b(?:paiement|payment|betaling|terms|e[ée]ch[ée]ance|verval)\b.*?(\d{1,2})\s*(?:jours?|days?|dagen)", line.text,
+            r"\b(?:paiement|payment|betaling|terms|[eé]ch[ée]ance|verval)\b.*?(\d{1,2})\s*(?:jours?|days?|dagen)", line.text,
             re.IGNORECASE,
         )
         if m:
@@ -386,10 +452,10 @@ def parse_invoice(lines: list[OcrLine]) -> dict:
     candidates_vat: list[tuple[float, float, OcrLine]] = []
 
     for line in lines:
-        amounts = line_amounts(line)
+        amounts = line_amounts_with_follow(line, lines)
         if not amounts:
             continue
-        rightmost = rightmost_amount(line)
+        rightmost = rightmost_amount(line) or amounts[-1]
         conf = min(line.score * 1.05, 0.98)
         strong_incl = bool(KW_TOTAL_INCL_STRONG.search(line.text))
         weak_incl = (not strong_incl) and bool(KW_TOTAL_INCL_WEAK.search(line.text))
@@ -397,8 +463,15 @@ def parse_invoice(lines: list[OcrLine]) -> dict:
             candidates_incl.append((rightmost[0], conf, line, strong_incl))
         if KW_TOTAL_EXCL.search(line.text):
             candidates_excl.append((rightmost[0], conf, line))
-        if KW_VAT.search(line.text):
-            for value, _token in amounts:
+        if KW_TOTAL_EXCL.search(line.text) or KW_TOTAL_INCL_STRONG.search(line.text) or KW_TOTAL_INCL_WEAK.search(line.text):
+            pass  # "Totaal excl. btw" is a totals line, not a VAT amount line.
+        elif KW_VAT.search(line.text):
+            usable = [a for a in amounts if not re.fullmatch(r"\d{1,2}", a[1])]
+            if not usable:
+                # Own amounts are only rate tokens ("21"): the real VAT amount
+                # sits on the line below (dotted-leader split).
+                usable = line_amounts_with_follow(line, lines)
+            for value, _token in usable:
                 # Guard: a bare 1-2 digit number is usually the rate, not money.
                 if re.fullmatch(r"\d{1,2}", _token):
                     continue
@@ -422,7 +495,9 @@ def parse_invoice(lines: list[OcrLine]) -> dict:
     # largest "TVA/BTW/VAT"-labelled amount that is not the total itself.
     vat = None
     if candidates_vat:
-        strong = [c for c in candidates_vat if c[0] < 1_000_000]
+        with_rate = [c for c in candidates_vat if KW_RATE.search(c[2].text)]
+        pool = with_rate or candidates_vat
+        strong = [c for c in pool if c[0] < 1_000_000]
         if strong:
             vat = max(strong, key=lambda c: c[0])
     # A VAT amount must not equal the grand total (would be a misread).
@@ -446,6 +521,25 @@ def parse_invoice(lines: list[OcrLine]) -> dict:
     if vat:
         put("vatAmount", vat[0], vat[1])
 
+    # ---------------- Fallback: grand total = largest amount near the bottom -----
+    # Real invoices use wildly different labels; if none matched, the grand total
+    # is almost always the largest amount in the lower half of the page.
+    if "totalInclVat" not in fields:
+        _page0 = [l for l in lines if l.page == 0] or lines
+        _page_h = max(l.y + l.h for l in _page0) or 1.0
+        bottom = [l for l in _page0 if l.y >= (_page_h * 0.45)]
+        big: list[tuple[float, float, OcrLine]] = []
+        for l in bottom:
+            for value, _token in line_amounts(l):
+                if 1 <= value < 1_000_000:
+                    big.append((value, l.score, l))
+        if big:
+            largest = max(big, key=lambda b: b[0])
+            # Avoid picking the VAT total itself: prefer a *different* line than the VAT line.
+            candidate = next((b for b in sorted(big, key=lambda b: -b[0]) if not KW_VAT.search(b[2].text)), None) or largest
+            put("totalInclVat", candidate[0], min(candidate[1] * 1.05, 0.72))
+            warnings.append("Total détecté par position (libellé non reconnu) — à vérifier.")
+
     # ---------------- VAT rate -------------------------------------------------
     rate = None
     rates_found: list[int] = []
@@ -461,7 +555,7 @@ def parse_invoice(lines: list[OcrLine]) -> dict:
 
     def nearest_rate(computed: float) -> int | None:
         nearest = min(BELGIAN_VAT_RATES, key=lambda r: abs(r - computed))
-        return nearest if abs(computed - nearest) <= 2 else None
+        return nearest if abs(computed - nearest) <= 1.5 else None
 
     if vat_amt is not None and excl_amt and excl_amt != 0:
         rate = nearest_rate(round(vat_amt / excl_amt * 100))
@@ -473,6 +567,20 @@ def parse_invoice(lines: list[OcrLine]) -> dict:
     if rate is not None:
         conf_rate = 0.85 if rate is not None and rates_found else 0.6
         put("vatRate", rate, conf_rate)
+
+    # Cross-derive the missing amounts so HTVA/TVA/TVAC always stay coherent.
+    if rate is not None:
+        incl_v = fields.get("totalInclVat", {}).get("value")
+        excl_v = fields.get("totalExclVat", {}).get("value")
+        vat_v = fields.get("vatAmount", {}).get("value")
+        if incl_v is not None and excl_v is None:
+            excl_v = round(incl_v - vat_v, 2) if vat_v is not None else round(incl_v / (1 + rate / 100), 2)
+            put("totalExclVat", excl_v, 0.72)
+        if excl_v is not None and incl_v is None:
+            incl_v = round(excl_v + (vat_v if vat_v is not None else excl_v * rate / 100), 2)
+            put("totalInclVat", incl_v, 0.72)
+        if excl_v is not None and vat_v is None:
+            put("vatAmount", round(excl_v * rate / 100, 2), 0.72)
 
     if len(rates_found) > 1:
         warnings.append(f"Plusieurs taux détectés ({', '.join(map(str, sorted(rates_found)))} %) — à vérifier.")
@@ -488,7 +596,7 @@ def parse_invoice(lines: list[OcrLine]) -> dict:
     page0 = [l for l in lines if l.page == 0] or lines
     if page0:
         page_h = max(l.y + l.h for l in page0) or 1.0
-        header = [l for l in page0 if l.y <= page_h * 0.30][:8] or page0[:6]
+        header = [l for l in page0 if l.y <= page_h * 0.35][:10] or page0[:6]
 
         def junk(l: OcrLine) -> bool:
             t = l.text
@@ -498,19 +606,44 @@ def parse_invoice(lines: list[OcrLine]) -> dict:
                 return True
             return False
 
-        candidates = [l for l in header if not junk(l)]
-        if not candidates:
-            candidates = [l for l in page0 if not junk(l)][:3]
+        candidates = [l for l in header if not junk(l) and len(l.text.strip()) >= 2]
 
-        if candidates:
-            # Prefer a line with a legal form, else the first substantial line.
-            chosen = next((l for l in candidates if LEGAL_FORM_RE.search(l.text)), candidates[0])
-            # Never return an entire address line as a supplier name.
-            name = re.split(r"\s{2,}|\t", chosen.text)[0].strip(" ,;:–—")
+        def score(l: OcrLine) -> float:
+            """Score a header line as the supplier name (bigger = more likely)."""
+            t = l.text.strip()
+            s = 0.0
+            if LEGAL_FORM_RE.search(t):
+                s += 10  # "… NV / SA / GmbH / BV" is a strong company signal
+            words = t.split()
+            if len(words) >= 2 and re.match(r"^\s*[A-ZÀ-Ý]", t):
+                s += 4  # capitalized multi-word name
+            elif len(words) == 1 and re.match(r"^\s*[A-ZÀ-Ý]", t):
+                s += 2
+            # Taller glyphs ≈ larger font ≈ the company name.
+            s += min(l.h / 24.0, 2.0)
+            if DISCLAIMER_RE.search(t):
+                s -= 100  # "provided by / powered by…" is a label, not the supplier
+            if re.match(r"^\s*(?:invoice|facture|receipt|rechnung|ticket|bon|devis)\b", t, re.I):
+                s -= 5
+            return s
+
+        best = max(candidates, key=score, default=None)
+        if best is not None:
+            # Strip a leading disclaimer/sep prefix so the name is clean.
+            name = best.text.strip(" ,;:–—")
+            name = re.sub(
+                r"^\s*(?:provided\s+by|powered\s+by|supplied\s+by|served\s+by|issued\s+by|"
+                r"prepared\s+by|created\s+by|generated\s+by|produced\s+by|[-–—]+)\s+",
+                "",
+                name,
+                flags=re.I,
+            )
+            name = re.split(r"\s{2,}|\t", name)[0]
+            name = name.strip(" ,;:–—")
             if len(name) >= 2:
-                conf = min(chosen.score * 1.05, 0.98)
-                if not LEGAL_FORM_RE.search(chosen.text):
-                    conf = min(conf, 0.7)
+                conf = min(best.score * 1.05, 0.98)
+                if not LEGAL_FORM_RE.search(best.text):
+                    conf = min(conf, 0.72)
                 put("supplierName", name, conf)
 
     # Fallback: line just before the VAT/BCE number line.

@@ -18,7 +18,9 @@
 
 import { dbStore, createId, normalizeOgm } from './dbStore';
 import {
+  FIRM_ROLES,
   LEGAL_FORMS,
+  PLATFORM_ROLES,
   RPM_CITIES,
   ROLES,
   VAT_REGIMES,
@@ -28,6 +30,7 @@ import type {
   Invoice,
   InvoiceLineRecord,
   PaymentLog,
+  Plan,
   PostalAddress,
   PurchaseExpense,
   Tenant,
@@ -41,7 +44,15 @@ export const DEMO_USERS = {
   ownerBrabo: 'gerant@brabo-solutions.be',
   ownerBois: 'gerant@atelierbois-design.be',
   ownerLogistics: 'gerant@antwerplogistics.be',
+  platformAdmin: 'admin@brabo.app',
+  /** Non-admin member of the fiduciaire (SENIOR). */
+  firmMember: 'senior@fiduciaire-flagey.be',
+  /** Employee of the Brabo tenant (EMPLOYEE). */
+  employeeBrabo: 'employe@brabo-solutions.be',
 } as const;
+
+/** Demo firm slug — matches the seeded `Fiduciaire Flagey`. */
+export const DEMO_FIRM_SLUG = 'flagey';
 
 interface SeedClientTenant {
   key: 'brabo' | 'bois' | 'logistics';
@@ -443,10 +454,229 @@ function buildFiduciary(now: string): Omit<FiduciaryConnection, 'id' | 'tenantId
   };
 }
 
+/** Commercial plans (SaaS tiers) sold to firms. Idempotent by slug. */
+const PLAN_SPECS: Omit<Plan, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'>[] = [
+  {
+    slug: 'starter',
+    name: 'Starter',
+    priceMonthlyEur: 0,
+    pricePerDossierEur: 25,
+    maxDossiers: 10,
+    maxUsers: 2,
+    features: ['10 dossiers', 'Espace client', 'Facturation & TVA', 'Support email'],
+    isActive: true,
+  },
+  {
+    slug: 'pro',
+    name: 'Pro',
+    priceMonthlyEur: 149,
+    pricePerDossierEur: 18,
+    maxDossiers: 100,
+    maxUsers: 10,
+    features: ['100 dossiers', 'Peppol & eBox', 'Workflow & clôture', 'White-label', 'Signature QES', 'Support prioritaire'],
+    isActive: true,
+  },
+  {
+    slug: 'scale',
+    name: 'Scale',
+    priceMonthlyEur: 399,
+    pricePerDossierEur: 12,
+    maxDossiers: null,
+    maxUsers: 50,
+    features: ['Dossiers illimités', 'API publique', 'BI & consolidation', 'SSO/MFA avancé', 'Account manager'],
+    isActive: true,
+  },
+];
+
+/**
+ * Seeds the 3-tier SaaS platform layer (plans, platform admin, demo firm) and
+ * backlinks existing demo tenants to the firm. Idempotent: safe on every boot.
+ */
+export async function seedPlatformData(): Promise<{ firmId: string }> {
+  await dbStore.init();
+
+  // Plans.
+  for (const spec of PLAN_SPECS) {
+    const existing = await dbStore.platform.findPlanBySlug(spec.slug);
+    if (!existing) await dbStore.platform.createPlan(spec, 'system');
+  }
+
+  // Platform admin user + platform-admin row.
+  let admin = await dbStore.users.findByEmail(DEMO_USERS.platformAdmin);
+  if (!admin) {
+    admin = await dbStore.users.create(
+      buildUser(DEMO_USERS.platformAdmin, 'Platform', 'Owner'),
+    );
+  }
+  const existingAdmin = await dbStore.platform.findPlatformAdminForUser(admin.id);
+  if (!existingAdmin) {
+    await dbStore.platform.createPlatformAdmin(
+      { userId: admin.id, role: PLATFORM_ROLES.PLATFORM_OWNER, status: 'active' },
+      'system',
+    );
+  }
+
+  // Demo firm.
+  let firm = await dbStore.platform.findFirmBySlug(DEMO_FIRM_SLUG);
+  if (!firm) {
+    const proPlan = await dbStore.platform.findPlanBySlug('pro');
+    firm = await dbStore.platform.createFirm(
+      {
+        name: 'Fiduciaire Flagey & Associés',
+        itaaFirmNumber: '11.234.567',
+        bceDigits: '0470123456',
+        vatNumber: 'BE0470123456',
+        address: address('Bruxelles', '1050'),
+        brand: {
+          slug: DEMO_FIRM_SLUG,
+          primaryColor: '#0ea5e9',
+          emailFooter: 'Fiduciaire Flagey & Associés — Expert-comptable ITAA',
+        },
+        status: 'active',
+        planId: proPlan?.id,
+        createdByPlatformAdminId: admin.id,
+      },
+      'system',
+    );
+  }
+
+  // Subscription for the demo firm.
+  const subs = await dbStore.platform.listFirmSubscriptions(firm.id);
+  if (subs.length === 0) {
+    const proPlan = await dbStore.platform.findPlanBySlug('pro');
+    await dbStore.platform.createFirmSubscription(
+      {
+        firmId: firm.id,
+        planId: proPlan?.id ?? '',
+        status: 'active',
+        dossierCount: 3,
+        overageDossiers: 0,
+      },
+      'system',
+    );
+  }
+
+  // Backlink existing demo tenants to the firm (covers a previously-seeded DB).
+  const tenantBces = ['0789456175', '0821567891', '0698321456'];
+  for (const bce of tenantBces) {
+    const tenant = await dbStore.tenants.findByBce(bce);
+    if (tenant && !tenant.firmId) {
+      await dbStore.tenants.update(
+        dbStore.systemContext(tenant.id),
+        { firmId: firm.id },
+        'Rattachement à la firme démo',
+      );
+    }
+  }
+
+  await dbStore.flush();
+  return { firmId: firm.id };
+}
+
+/** Binds the demo accountant to the firm as FIRM_ADMIN (idempotent). */
+async function linkAccountantToFirm(firmId: string): Promise<void> {
+  const accountant = await dbStore.users.findByEmail(DEMO_USERS.accountant);
+  if (!accountant) return;
+  const memberships = await dbStore.platform.listFirmMemberships(firmId);
+  if (!memberships.some((m) => m.userId === accountant.id)) {
+    await dbStore.platform.createFirmMembership(
+      {
+        firmId,
+        userId: accountant.id,
+        role: FIRM_ROLES.FIRM_ADMIN,
+        status: 'active',
+        extraPermissions: [],
+        deniedPermissions: [],
+      },
+      'system',
+    );
+    await dbStore.flush();
+  }
+}
+
+/**
+ * Seeds the two additional SaaS profiles so all four are reachable end-to-end:
+ *   - firm collaborator (SENIOR) → non-admin member of the fiduciaire,
+ *   - client employee (EMPLOYEE) → limited member of the Brabo tenant.
+ * Idempotent: safe on every boot.
+ */
+async function seedProfileIdentities(firmId: string): Promise<void> {
+  // Firm collaborator (SENIOR).
+  let senior = await dbStore.users.findByEmail(DEMO_USERS.firmMember);
+  if (!senior) {
+    senior = await dbStore.users.create(
+      buildUser(DEMO_USERS.firmMember, 'Luc', 'Dubois', '11.234.568'),
+    );
+  }
+  const firmMemberships = await dbStore.platform.listFirmMemberships(firmId);
+  if (!firmMemberships.some((m) => m.userId === senior!.id && m.role === FIRM_ROLES.SENIOR)) {
+    await dbStore.platform.createFirmMembership(
+      {
+        firmId,
+        userId: senior!.id,
+        role: FIRM_ROLES.SENIOR,
+        status: 'active',
+        extraPermissions: [],
+        deniedPermissions: [],
+      },
+      'system',
+    );
+  }
+
+  // The senior also holds ACCOUNTANT_ITAA memberships on each dossier — this is
+  // what the tenant repository uses to scope the firm portal reads.
+  const tenantBces = ['0789456175', '0821567891', '0698321456'];
+  for (const bce of tenantBces) {
+    const tenant = await dbStore.tenants.findByBce(bce);
+    if (!tenant) continue;
+    const existing = await dbStore.memberships.findFor(senior!.id, tenant.id);
+    if (!existing) {
+      await dbStore.memberships.create(dbStore.systemContext(tenant.id), {
+        userId: senior!.id,
+        role: ROLES.ACCOUNTANT_ITAA,
+        status: 'active',
+        extraPermissions: [],
+        deniedPermissions: [],
+        invitedAt: new Date().toISOString(),
+        acceptedAt: new Date().toISOString(),
+      });
+    }
+  }
+
+  // Client employee (EMPLOYEE) on the Brabo tenant.
+  let employee = await dbStore.users.findByEmail(DEMO_USERS.employeeBrabo);
+  if (!employee) {
+    employee = await dbStore.users.create(
+      buildUser(DEMO_USERS.employeeBrabo, 'Emma', 'Vandenberghe'),
+    );
+  }
+  const braboTenant = await dbStore.tenants.findByBce('0789456175');
+  if (braboTenant) {
+    const existing = await dbStore.memberships.findFor(employee!.id, braboTenant.id);
+    if (!existing) {
+      await dbStore.memberships.create(dbStore.systemContext(braboTenant.id), {
+        userId: employee!.id,
+        role: ROLES.EMPLOYEE,
+        status: 'active',
+        extraPermissions: [],
+        deniedPermissions: [],
+        invitedAt: new Date().toISOString(),
+        acceptedAt: new Date().toISOString(),
+      });
+    }
+  }
+}
+
 /** Seeds the whole demo dataset. Idempotent. */
 export async function seedDemoData(): Promise<void> {
   await dbStore.init();
-  if (await dbStore.users.findByEmail(DEMO_USERS.accountant)) return;
+  const { firmId } = await seedPlatformData();
+  if (await dbStore.users.findByEmail(DEMO_USERS.accountant)) {
+    await linkAccountantToFirm(firmId);
+    await seedProfileIdentities(firmId);
+    await dbStore.flush();
+    return;
+  }
 
   // 1. Provision users.
   const ownerBrabo = await dbStore.users.create(buildUser(DEMO_USERS.ownerBrabo, 'Nicolas', 'Simon'));
@@ -465,7 +695,10 @@ export async function seedDemoData(): Promise<void> {
   // 2. Provision tenants + OWNER/ACCOUNTANT memberships + financial rows.
   const tenantIds: Record<string, string> = {};
   for (const spec of CLIENTS) {
-    const tenant = await dbStore.tenants.create(buildTenant(spec), ownerByKey[spec.key].id);
+    const tenant = await dbStore.tenants.create(
+      { ...buildTenant(spec), firmId },
+      ownerByKey[spec.key].id,
+    );
     tenantIds[spec.key] = tenant.id;
 
     const ownerCtx = dbStore.systemContext(tenant.id);
@@ -510,6 +743,12 @@ export async function seedDemoData(): Promise<void> {
   await dbStore.fiduciaries.create(dbStore.systemContext(tenantIds.brabo), {
     ...buildFiduciary(new Date().toISOString()),
   });
+
+  // 4. Bind the demo accountant to the firm as FIRM_ADMIN.
+  await linkAccountantToFirm(firmId);
+
+  // 5. Seed the two additional SaaS profiles (firm collaborator + client employee).
+  await seedProfileIdentities(firmId);
 
   await dbStore.flush();
 }

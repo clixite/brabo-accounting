@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:ci": "vitest run --reporter=basic"
+    "test:ci": "vitest run --reporter=basic",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
@@ -22,6 +23,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^24.13.3",

@@ -23,6 +23,7 @@ import { translations } from '../i18n/translations';
 interface ExpensesViewProps {
   purchases: PurchaseExpense[];
   lang: Language;
+  readOnly?: boolean;
   onScanExpense: () => void;
   onDeleteExpense: (id: string) => void;
 }
@@ -30,6 +31,7 @@ interface ExpensesViewProps {
 export const ExpensesView: React.FC<ExpensesViewProps> = ({
   purchases,
   lang,
+  readOnly = false,
   onScanExpense,
   onDeleteExpense,
 }) => {
@@ -80,10 +82,12 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           </h1>
         </div>
 
-        <Button variant="primary" onClick={onScanExpense}>
-          <Sparkles className="w-4 h-4" />
-          {t.scanButton}
-        </Button>
+        {!readOnly && (
+          <Button variant="primary" onClick={onScanExpense}>
+            <Sparkles className="w-4 h-4" />
+            {t.scanButton}
+          </Button>
+        )}
       </div>
 
       <SplitView
@@ -125,32 +129,34 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               </CardBody>
             </Card>
 
-            <Card>
-              <CardBody>
-                <button
-                  type="button"
-                  onClick={onScanExpense}
-                  className="w-full text-left border border-dashed rounded-[var(--radius-lg)] px-3 py-3 bg-[var(--bg-subtle)] hover:bg-[var(--bg-hover)] border-[var(--border-default)] transition"
-                >
-                  <div className="flex items-center gap-2">
-                    <UploadCloud className="w-4 h-4 text-[var(--text-tertiary)]" />
-                    <div>
-                      <div className="text-[length:var(--text-xs)] font-medium text-[var(--text-primary)]">
-                        {t.dropzoneTitle}
-                      </div>
-                      <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
-                        {t.dropzoneSubtitle}
+            {!readOnly && (
+              <Card>
+                <CardBody>
+                  <button
+                    type="button"
+                    onClick={onScanExpense}
+                    className="w-full text-left border border-dashed rounded-[var(--radius-lg)] px-3 py-3 bg-[var(--bg-subtle)] hover:bg-[var(--bg-hover)] border-[var(--border-default)] transition"
+                  >
+                    <div className="flex items-center gap-2">
+                      <UploadCloud className="w-4 h-4 text-[var(--text-tertiary)]" />
+                      <div>
+                        <div className="text-[length:var(--text-xs)] font-medium text-[var(--text-primary)]">
+                          {t.dropzoneTitle}
+                        </div>
+                        <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                          {t.dropzoneSubtitle}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="mt-2 flex items-center gap-2 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
-                    <StatusDot tone="info">OCR FR/NL</StatusDot>
-                    <StatusDot tone="info">BCE Mod97</StatusDot>
-                    <StatusDot tone="info">Déductibilité</StatusDot>
-                  </div>
-                </button>
-              </CardBody>
-            </Card>
+                    <div className="mt-2 flex items-center gap-2 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                      <StatusDot tone="info">OCR FR/NL</StatusDot>
+                      <StatusDot tone="info">BCE Mod97</StatusDot>
+                      <StatusDot tone="info">Déductibilité</StatusDot>
+                    </div>
+                  </button>
+                </CardBody>
+              </Card>
+            )}
 
             <Card flush>
               <CardHeader title="Dépenses" description={`${filteredPurchases.length} élément(s)`} />
@@ -224,16 +230,18 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                           <StatusDot tone={tone as any}>{exp.status.toUpperCase()}</StatusDot>
                         </Td>
                         <Td align="right">
-                          <IconButton
-                            label="Supprimer"
-                            tone="danger"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeleteExpense(exp.id);
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </IconButton>
+                          {!readOnly && (
+                            <IconButton
+                              label="Supprimer"
+                              tone="danger"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteExpense(exp.id);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </IconButton>
+                          )}
                         </Td>
                       </Tr>
                     );
@@ -251,15 +259,17 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               actions={
                 selectedExpense ? (
                   <div className="flex items-center gap-1">
-                    <Button
-                      variant="secondary"
-                      className="h-[var(--control-height-sm)] px-2"
-                      onClick={() => onScanExpense()}
-                      title="Scanner/ajouter une autre dépense"
-                    >
-                      <UploadCloud className="w-3.5 h-3.5" />
-                      Scanner
-                    </Button>
+                    {!readOnly && (
+                      <Button
+                        variant="secondary"
+                        className="h-[var(--control-height-sm)] px-2"
+                        onClick={() => onScanExpense()}
+                        title="Scanner/ajouter une autre dépense"
+                      >
+                        <UploadCloud className="w-3.5 h-3.5" />
+                        Scanner
+                      </Button>
+                    )}
                   </div>
                 ) : null
               }

@@ -149,6 +149,62 @@ export const MEMBERSHIP_STATUSES = {
 } as const;
 export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[keyof typeof MEMBERSHIP_STATUSES];
 
+/* -------------------------------------------------------------------------- */
+/* Platform (Super Admin) & Firm (fiduciaire) roles — 3-tier SaaS hierarchy  */
+/* -------------------------------------------------------------------------- */
+
+/** Platform operators — the SaaS owner and its staff. */
+export const PLATFORM_ROLES = {
+  /** Platform owner: full control, incl. billing and other platform admins. */
+  PLATFORM_OWNER: 'PLATFORM_OWNER',
+  /** Platform admin: manages firms, plans and impersonation. */
+  PLATFORM_ADMIN: 'PLATFORM_ADMIN',
+  /** Read-only support: inspects firms/health, cannot mutate. */
+  PLATFORM_SUPPORT: 'PLATFORM_SUPPORT',
+} as const;
+export type PlatformRole = (typeof PLATFORM_ROLES)[keyof typeof PLATFORM_ROLES];
+
+export const PLATFORM_ROLE_RANK: Readonly<Record<PlatformRole, number>> = {
+  PLATFORM_OWNER: 60,
+  PLATFORM_ADMIN: 50,
+  PLATFORM_SUPPORT: 20,
+};
+
+/** Roles inside an accounting firm (fiduciaire). */
+export const FIRM_ROLES = {
+  /** Firm owner/admin: manages team, billing, and all client dossiers. */
+  FIRM_ADMIN: 'FIRM_ADMIN',
+  /** Partner: full access to assigned dossiers + billing visibility. */
+  PARTNER: 'PARTNER',
+  /** Senior accountant: reviews and files for assigned dossiers. */
+  SENIOR: 'SENIOR',
+  /** Junior accountant: encodes and prepares. */
+  JUNIOR: 'JUNIOR',
+  /** Bookkeeper: bank + expense encoding only. */
+  BOOKKEEPER: 'BOOKKEEPER',
+  /** Read-only collaborator. */
+  READONLY: 'READONLY',
+} as const;
+export type FirmRole = (typeof FIRM_ROLES)[keyof typeof FIRM_ROLES];
+
+/** Firm lifecycle status. */
+export const FIRM_STATUSES = {
+  TRIAL: 'trial',
+  ACTIVE: 'active',
+  SUSPENDED: 'suspended',
+  CANCELLED: 'cancelled',
+} as const;
+export type FirmStatus = (typeof FIRM_STATUSES)[keyof typeof FIRM_STATUSES];
+
+/** Subscription lifecycle status. */
+export const SUBSCRIPTION_STATUSES = {
+  TRIALING: 'trialing',
+  ACTIVE: 'active',
+  PAST_DUE: 'past_due',
+  CANCELLED: 'cancelled',
+} as const;
+export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[keyof typeof SUBSCRIPTION_STATUSES];
+
 /** Granular permissions; roles expand into sets of these. */
 export const PERMISSIONS = {
   TENANT_READ: 'tenant:read',
@@ -176,8 +232,46 @@ export const PERMISSIONS = {
   FIDUCIARY_MANAGE: 'fiduciary:manage',
   DOCUMENT_READ: 'document:read',
   DOCUMENT_WRITE: 'document:write',
+  // Platform (Super Admin) permissions.
+  PLATFORM_MANAGE: 'platform:manage',
+  PLATFORM_BILLING: 'platform:billing',
+  PLATFORM_IMPERSONATE: 'platform:impersonate',
+  PLATFORM_AUDIT_READ: 'platform:audit_read',
+  // Firm (fiduciaire) permissions.
+  FIRM_MANAGE: 'firm:manage',
+  FIRM_TEAM_MANAGE: 'firm:team_manage',
+  FIRM_CLIENT_MANAGE: 'firm:client_manage',
+  FIRM_BILLING: 'firm:billing',
+  FIRM_ANALYTICS: 'firm:analytics',
 } as const;
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+
+/**
+ * Platform-role → permission matrix. Kept separate from tenant RBAC: platform
+ * operations are global (they span firms), so they are asserted via
+ * `assertPlatformRole` rather than the tenant `RequestContext`.
+ */
+export const PLATFORM_ROLE_PERMISSIONS: Readonly<Record<PlatformRole, readonly Permission[]>> = {
+  PLATFORM_OWNER: [
+    'platform:manage', 'platform:billing', 'platform:impersonate', 'platform:audit_read',
+  ],
+  PLATFORM_ADMIN: [
+    'platform:manage', 'platform:billing', 'platform:impersonate', 'platform:audit_read',
+  ],
+  PLATFORM_SUPPORT: ['platform:audit_read'],
+};
+
+/** Firm-role → permission matrix (inside the firm console). */
+export const FIRM_ROLE_PERMISSIONS: Readonly<Record<FirmRole, readonly Permission[]>> = {
+  FIRM_ADMIN: [
+    'firm:manage', 'firm:team_manage', 'firm:client_manage', 'firm:billing', 'firm:analytics',
+  ],
+  PARTNER: ['firm:manage', 'firm:client_manage', 'firm:analytics'],
+  SENIOR: ['firm:client_manage', 'firm:analytics'],
+  JUNIOR: [],
+  BOOKKEEPER: [],
+  READONLY: [],
+};
 
 /** Authoritative role → permission matrix consumed by the RBAC helper. */
 export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
@@ -337,6 +431,8 @@ export interface Tenant extends BaseRecord {
   website?: string;
   locale: Locale;
   status: TenantStatus;
+  /** Managing accounting firm (fiduciaire). Set once the firm owns the dossier. */
+  firmId?: ID;
   /** Free-form settings bag for feature flags per tenant. */
   settings: Record<string, string | number | boolean>;
 }
@@ -411,6 +507,110 @@ export interface Membership extends TenantScoped {
   expiresAt?: ISODateTime;
   /** Set when the membership stems from a `FiduciaryConnection`. */
   fiduciaryConnectionId?: ID;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Platform & Firm entities (3-tier SaaS hierarchy)                           */
+/* -------------------------------------------------------------------------- */
+
+/** White-label branding owned by a firm. */
+export interface FirmBrand {
+  /** URL-safe slug used for the firm's subdomain/vanity URL. */
+  slug: string;
+  logoUrl?: string;
+  primaryColor?: string;
+  emailFooter?: string;
+}
+
+/**
+ * An accounting firm (fiduciaire / boekhoudkantoor) — the SaaS customer that
+ * owns many client tenants. Rows are NOT tenant-scoped: the platform is the
+ * isolation owner, enforced by dedicated platform/firm repositories.
+ */
+export interface Firm extends BaseRecord {
+  name: string;
+  /** ITAA firm registration number. */
+  itaaFirmNumber?: string;
+  bceDigits: string;
+  vatNumber?: string;
+  address: PostalAddress;
+  brand: FirmBrand;
+  status: FirmStatus;
+  planId?: ID;
+  trialEndsAt?: ISODateTime;
+  createdByPlatformAdminId?: UserId;
+}
+
+/** A commercial plan (subscription tier) sold to firms. */
+export interface Plan extends BaseRecord {
+  slug: string;
+  name: string;
+  /** EUR per month, 2 decimals. */
+  priceMonthlyEur: number;
+  /** EUR per extra dossier per month, 2 decimals. */
+  pricePerDossierEur: number;
+  /** Included dossiers; `null` = unlimited. */
+  maxDossiers: number | null;
+  maxUsers: number;
+  features: string[];
+  isActive: boolean;
+}
+
+/** Binds a user to a firm with a firm-scoped role. */
+export interface FirmMembership extends BaseRecord {
+  firmId: ID;
+  userId: UserId;
+  role: FirmRole;
+  status: MembershipStatus;
+  extraPermissions: Permission[];
+  deniedPermissions: Permission[];
+  invitedAt?: ISODateTime;
+  acceptedAt?: ISODateTime;
+}
+
+/** The subscription a firm holds (mirrors a Stripe subscription in prod). */
+export interface FirmSubscription extends BaseRecord {
+  firmId: ID;
+  planId: ID;
+  status: SubscriptionStatus;
+  currentPeriodStart?: ISODate;
+  currentPeriodEnd?: ISODate;
+  dossierCount: number;
+  overageDossiers: number;
+  providerRef?: string;
+}
+
+/** A user elevated to a platform operator role. */
+export interface PlatformAdmin extends BaseRecord {
+  userId: UserId;
+  role: PlatformRole;
+  status: 'active' | 'suspended';
+}
+
+/**
+ * Append-only, hash-chained audit trail for platform-level actions (firm
+ * creation, plan edits, impersonation…). Independent from the per-tenant
+ * chain so a tenant can never see platform operations.
+ */
+export interface PlatformAuditLog {
+  id: ID;
+  sequence: number;
+  timestamp: ISODateTime;
+  actorUserId: UserId | 'system';
+  actorEmail?: string;
+  actorRole?: PlatformRole;
+  actorIp?: string;
+  userAgent?: string;
+  action: AuditAction;
+  entity: AuditEntity;
+  entityId: ID;
+  entityLabel?: string;
+  before: JsonValue | null;
+  after: JsonValue | null;
+  previousHash: Sha256Hex;
+  hash: Sha256Hex;
+  hashAlgorithm: 'SHA-256';
+  reason?: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -984,6 +1184,13 @@ export const AUDIT_ENTITIES = {
   VAT_DECLARATION: 'VatDeclaration',
   SHARED_DOCUMENT: 'SharedDocument',
   SESSION: 'Session',
+  // Platform / firm (3-tier SaaS) entities.
+  FIRM: 'Firm',
+  FIRM_MEMBERSHIP: 'FirmMembership',
+  FIRM_SUBSCRIPTION: 'FirmSubscription',
+  PLAN: 'Plan',
+  PLATFORM_ADMIN: 'PlatformAdmin',
+  PLATFORM_AUDIT: 'PlatformAudit',
 } as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[keyof typeof AUDIT_ENTITIES];
 
@@ -1355,6 +1562,57 @@ export interface DatabaseStore {
     revoke(id: ID): Promise<void>;
   };
   audit: AuditLogRepository;
+  /** Platform (Super Admin) repositories — global, not tenant-scoped. */
+  platform: {
+    /** Lists every firm (platform operators only). */
+    listFirms(options?: ListOptions<Firm>): Promise<Page<Firm>>;
+    findFirmById(id: ID): Promise<Firm | null>;
+    findFirmBySlug(slug: string): Promise<Firm | null>;
+    createFirm(input: Omit<Firm, ManagedFields> & Partial<Pick<Firm, 'id'>>, actorUserId: UserId): Promise<Firm>;
+    updateFirm(id: ID, patch: Partial<Omit<Firm, ManagedFields>>, actorUserId: UserId, reason?: string): Promise<Firm>;
+    setFirmStatus(id: ID, status: FirmStatus, actorUserId: UserId, reason?: string): Promise<Firm>;
+    /** Counts client tenants belonging to a firm. */
+    countFirmClients(firmId: ID): Promise<number>;
+    listFirmClients(firmId: ID): Promise<Tenant[]>;
+
+    listPlans(): Promise<Plan[]>;
+    findPlanById(id: ID): Promise<Plan | null>;
+    findPlanBySlug(slug: string): Promise<Plan | null>;
+    createPlan(input: Omit<Plan, ManagedFields> & Partial<Pick<Plan, 'id'>>, actorUserId: UserId): Promise<Plan>;
+    updatePlan(id: ID, patch: Partial<Omit<Plan, ManagedFields>>, actorUserId: UserId): Promise<Plan>;
+
+    listFirmMemberships(firmId: ID): Promise<FirmMembership[]>;
+    listFirmMembershipsForUser(userId: UserId): Promise<FirmMembership[]>;
+    createFirmMembership(input: Omit<FirmMembership, ManagedFields> & Partial<Pick<FirmMembership, 'id'>>, actorUserId: UserId): Promise<FirmMembership>;
+    updateFirmMembership(id: ID, patch: Partial<Omit<FirmMembership, ManagedFields>>, actorUserId: UserId): Promise<FirmMembership>;
+    revokeFirmMembership(id: ID, actorUserId: UserId, reason?: string): Promise<FirmMembership>;
+
+    listFirmSubscriptions(firmId: ID): Promise<FirmSubscription[]>;
+    createFirmSubscription(input: Omit<FirmSubscription, ManagedFields> & Partial<Pick<FirmSubscription, 'id'>>, actorUserId: UserId): Promise<FirmSubscription>;
+    updateFirmSubscription(id: ID, patch: Partial<Omit<FirmSubscription, ManagedFields>>, actorUserId: UserId): Promise<FirmSubscription>;
+
+    /** Platform-administrator membership of a user (global role). */
+    findPlatformAdminForUser(userId: UserId): Promise<PlatformAdmin | null>;
+    listPlatformAdmins(): Promise<PlatformAdmin[]>;
+    createPlatformAdmin(input: Omit<PlatformAdmin, ManagedFields> & Partial<Pick<PlatformAdmin, 'id'>>, actorUserId: UserId): Promise<PlatformAdmin>;
+    updatePlatformAdmin(id: ID, patch: Partial<Omit<PlatformAdmin, ManagedFields>>, actorUserId: UserId): Promise<PlatformAdmin>;
+
+    /** Hash-chained platform audit. */
+    appendPlatformAudit(entry: {
+      actorUserId: UserId | 'system';
+      actorEmail?: string;
+      actorRole?: PlatformRole;
+      action: AuditAction;
+      entity: AuditEntity;
+      entityId: ID;
+      entityLabel?: string;
+      before?: JsonValue | null;
+      after?: JsonValue | null;
+      reason?: string;
+    }): Promise<PlatformAuditLog>;
+    listPlatformAudit(options?: ListOptions<PlatformAuditLog>): Promise<Page<PlatformAuditLog>>;
+    verifyPlatformChain(): Promise<{ valid: boolean; entriesChecked: number; brokenAt: { sequence: number; reason: string }[] }>;
+  };
   /** Flush pending writes to the configured persistence adapter. */
   flush(): Promise<void>;
   /** Load state from the persistence adapter; idempotent. */

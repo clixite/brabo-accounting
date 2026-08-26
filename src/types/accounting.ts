@@ -112,6 +112,14 @@ export interface PurchaseExpense {
     supplierRecognized: boolean;
     vatDetected: number;
     bceValidated: boolean;
+    /** OCR server metadata (present when the scan came from the real engine). */
+    engine?: string;
+    engineVersion?: string;
+    processedAt?: string;
+    confidence?: number;
+    rawText?: string;
+    manuallyCorrectedFields?: string[];
+    warnings?: string[];
   };
 }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import type { CompanyProfile, Invoice, PurchaseExpense, BankTransaction, DocumentType, InvoiceStatus } from './types/accounting';
 import { 
   INITIAL_COMPANY_PROFILE, 
@@ -15,6 +15,8 @@ import { SessionBar } from './components/portal/SessionBar';
 import { CommandPalette } from './components/CommandPalette';
 import { useSession } from './state/SessionContext';
 import { useToasts } from './state/ToastContext';
+import { PERMISSIONS } from './server/types/db';
+import type { Permission } from './server/types/db';
 import { loadTenantLedger, replaceTenantLedger } from './services/tenantWorkspace';
 import { apiFetchLedger, apiSaveLedger } from './services/apiClient';
 import { transmitInvoice } from './services/peppolService';
@@ -42,11 +44,58 @@ const ViesLookupModal = lazy(() => import('./components/ViesLookupModal').then((
 const SchematronReportModal = lazy(() => import('./components/SchematronReportModal').then((m) => ({ default: m.SchematronReportModal })));
 
 export function ClientWorkspace() {
-  const { canSelfDeclare, activeTenant, user, activeRole, lang } = useSession();
+  const { canSelfDeclare, activeTenant, user, activeRole, lang, permissions, forceClientWorkspace } = useSession();
   const toast = useToasts();
+
+  // RBAC enforcement at the UI layer — mirrors the data-layer deny-wins rules.
+  const can = useCallback(
+    (permission: Permission) => !forceClientWorkspace && permissions.has(permission),
+    [forceClientWorkspace, permissions],
+  );
+
+  const deny = useCallback(
+    (action: string) => {
+      toast.push('error', 'Accès refusé', `Votre rôle ne permet pas de ${action}.`);
+    },
+    [toast],
+  );
+
+  const visibleTabs = useMemo(() => {
+    const tabs = new Set<NavTab>();
+    if (permissions.has(PERMISSIONS.VAT_READ)) {
+      tabs.add('dashboard');
+      tabs.add('reports');
+      tabs.add('taxCenter');
+      tabs.add('payroll');
+    }
+    if (permissions.has(PERMISSIONS.INVOICE_READ)) tabs.add('invoicing');
+    if (permissions.has(PERMISSIONS.EXPENSE_READ)) tabs.add('expenses');
+    if (permissions.has(PERMISSIONS.BANK_READ)) tabs.add('banking');
+    if (permissions.has(PERMISSIONS.INVOICE_SEND_PEPPOL)) tabs.add('peppol');
+    if (permissions.has(PERMISSIONS.FIDUCIARY_READ)) tabs.add('fiduciary');
+    if (permissions.has(PERMISSIONS.DOCUMENT_READ)) tabs.add('documents');
+    if (permissions.has(PERMISSIONS.AUDIT_READ)) tabs.add('audit');
+    if (permissions.has(PERMISSIONS.TENANT_UPDATE)) tabs.add('settings');
+    return tabs;
+  }, [permissions]);
+
+  const readOnlyInvoicing = !can(PERMISSIONS.INVOICE_WRITE);
+  const readOnlyExpenses = !can(PERMISSIONS.EXPENSE_WRITE);
 
   // 1. Active navigation tab
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
+
+  // Redirect to the first allowed tab when the current one is out of scope.
+  useEffect(() => {
+    if (visibleTabs.size === 0) return;
+    if (!visibleTabs.has(currentTab)) {
+      const order: NavTab[] = [
+        'dashboard', 'reports', 'invoicing', 'expenses', 'banking', 'peppol',
+        'taxCenter', 'fiduciary', 'documents', 'payroll', 'audit', 'settings',
+      ];
+      setCurrentTab(order.find((t) => visibleTabs.has(t)) ?? 'dashboard');
+    }
+  }, [visibleTabs, currentTab]);
 
   // 3. Persistent Data states
   const [company, setCompany] = useState<CompanyProfile>(() => {
@@ -221,6 +270,10 @@ export function ClientWorkspace() {
   };
 
   const handleSaveInvoice = (savedInv: Invoice) => {
+    if (!can(PERMISSIONS.INVOICE_WRITE)) {
+      deny('créer ou modifier des factures');
+      return;
+    }
     setInvoices(prev => {
       const exists = prev.some(i => i.id === savedInv.id);
       if (exists) {
@@ -236,10 +289,18 @@ export function ClientWorkspace() {
   };
 
   const handleDeleteInvoice = (id: string) => {
+    if (!can(PERMISSIONS.INVOICE_DELETE)) {
+      deny('supprimer des factures');
+      return;
+    }
     setInvoices(prev => prev.filter(i => i.id !== id));
   };
 
   const handleUpdateInvoiceStatus = (id: string, status: InvoiceStatus) => {
+    if (!can(PERMISSIONS.INVOICE_WRITE)) {
+      deny("modifier le statut d'une facture");
+      return;
+    }
     setInvoices(prev => prev.map(inv => {
       if (inv.id !== id) return inv;
       const updated: Invoice = { ...inv, status };
@@ -267,16 +328,28 @@ export function ClientWorkspace() {
 
   // Handlers for Purchases
   const handleSavePurchase = (savedExp: PurchaseExpense) => {
+    if (!can(PERMISSIONS.EXPENSE_WRITE)) {
+      deny('encoder des dépenses');
+      return;
+    }
     setPurchases(prev => [savedExp, ...prev]);
     toast.push('success', 'Dépense enregistrée', `${savedExp.supplierName} · ${savedExp.amountInclVat.toFixed(2)} € · PCMN ${savedExp.pcmnAccount}`);
   };
 
   const handleDeletePurchase = (id: string) => {
+    if (!can(PERMISSIONS.EXPENSE_DELETE)) {
+      deny('supprimer des dépenses');
+      return;
+    }
     setPurchases(prev => prev.filter(p => p.id !== id));
   };
 
   // Handlers for Banking & CODA
   const handleReconcileTransaction = (txId: string, invoiceId?: string, expenseId?: string) => {
+    if (!can(PERMISSIONS.BANK_RECONCILE)) {
+      deny('rapprocher des opérations bancaires');
+      return;
+    }
     setTransactions(prev => prev.map(tx => {
       if (tx.id !== txId) return tx;
       return {
@@ -293,6 +366,10 @@ export function ClientWorkspace() {
   };
 
   const handleImportCodaTransactions = (newTxs: BankTransaction[]) => {
+    if (!can(PERMISSIONS.BANK_WRITE)) {
+      deny('importer des relevés CODA');
+      return;
+    }
     setTransactions(prev => [...newTxs, ...prev]);
   };
 
@@ -335,6 +412,7 @@ export function ClientWorkspace() {
         overdueCount={overdueCount}
         pendingExpensesCount={pendingExpensesCount}
         unreconciledBankCount={unreconciledBankCount}
+        visibleTabs={visibleTabs}
       >
         {currentTab === 'dashboard' && (
           <DashboardView
@@ -372,6 +450,7 @@ export function ClientWorkspace() {
             invoices={invoices}
             company={company}
             lang={lang}
+            readOnly={readOnlyInvoicing}
             onNewInvoice={handleOpenNewInvoice}
             onNewQuote={handleOpenNewQuote}
             onNewCreditNote={handleOpenNewCreditNote}
@@ -389,6 +468,7 @@ export function ClientWorkspace() {
           <ExpensesView
             purchases={purchases}
             lang={lang}
+            readOnly={readOnlyExpenses}
             onScanExpense={() => setIsExpenseModalOpen(true)}
             onDeleteExpense={handleDeletePurchase}
           />
@@ -425,7 +505,13 @@ export function ClientWorkspace() {
             lang={lang}
             onReconcileTransaction={handleReconcileTransaction}
             onImportCodaTransactions={handleImportCodaTransactions}
-            onAutoEncodeExpenses={(drafts) => setPurchases(prev => [...drafts, ...prev])}
+            onAutoEncodeExpenses={(drafts) => {
+              if (!can(PERMISSIONS.BANK_WRITE)) {
+                deny('auto-encoder des dépenses');
+                return;
+              }
+              setPurchases(prev => [...drafts, ...prev]);
+            }}
           />
         )}
 
@@ -447,6 +533,10 @@ export function ClientWorkspace() {
             purchases={purchases}
             transactions={transactions}
             onRestoreBackup={(b) => {
+              if (!can(PERMISSIONS.TENANT_UPDATE)) {
+                deny('restaurer une sauvegarde');
+                return;
+              }
               setCompany(b.company);
               setInvoices(b.invoices);
               setPurchases(b.purchases);

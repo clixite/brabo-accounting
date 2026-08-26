@@ -35,6 +35,7 @@ interface InvoicingViewProps {
   invoices: Invoice[];
   company: CompanyProfile;
   lang: Language;
+  readOnly?: boolean;
   onNewInvoice: () => void;
   onNewQuote: () => void;
   onNewCreditNote: () => void;
@@ -51,6 +52,7 @@ export const InvoicingView: React.FC<InvoicingViewProps> = ({
   invoices,
   company,
   lang,
+  readOnly = false,
   onNewInvoice,
   onNewQuote,
   onNewCreditNote,
@@ -126,14 +128,16 @@ export const InvoicingView: React.FC<InvoicingViewProps> = ({
           </h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="secondary" onClick={onNewQuote}>+ {t.createQuote}</Button>
-          <Button variant="secondary" onClick={onNewCreditNote}>+ {t.createCreditNote}</Button>
-          <Button variant="primary" onClick={onNewInvoice}>
-            <Plus className="w-4 h-4" />
-            {t.createInvoice}
-          </Button>
-        </div>
+        {!readOnly && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" onClick={onNewQuote}>+ {t.createQuote}</Button>
+            <Button variant="secondary" onClick={onNewCreditNote}>+ {t.createCreditNote}</Button>
+            <Button variant="primary" onClick={onNewInvoice}>
+              <Plus className="w-4 h-4" />
+              {t.createInvoice}
+            </Button>
+          </div>
+        )}
       </div>
 
       <SplitView
@@ -284,6 +288,8 @@ export const InvoicingView: React.FC<InvoicingViewProps> = ({
                   <Td align="center">
                     {inv.peppolStatus?.isSent ? (
                       <StatusDot tone="positive">Livré</StatusDot>
+                    ) : readOnly ? (
+                      <StatusDot tone="neutral">Non envoyé</StatusDot>
                     ) : (
                       <Button
                         variant="secondary"
@@ -307,7 +313,7 @@ export const InvoicingView: React.FC<InvoicingViewProps> = ({
                   <Td align="right">
                     <div className="flex items-center justify-end gap-1">
                       
-                      {inv.status === 'overdue' && (
+                      {!readOnly && inv.status === 'overdue' && (
                         <IconButton
                           label="Rappel / mise en demeure"
                           tone="danger"
@@ -350,7 +356,7 @@ export const InvoicingView: React.FC<InvoicingViewProps> = ({
                         <ClipboardCheck className="w-4 h-4" />
                       </IconButton>
 
-                      {inv.status !== 'paid' && (
+                      {!readOnly && inv.status !== 'paid' && (
                         <IconButton
                           label="Payconiq"
                           onClick={(e) => {
@@ -362,7 +368,7 @@ export const InvoicingView: React.FC<InvoicingViewProps> = ({
                         </IconButton>
                       )}
 
-                      {inv.status !== 'paid' && (
+                      {!readOnly && inv.status !== 'paid' && (
                         <IconButton
                           label="Marquer payé"
                           tone="positive"
@@ -375,26 +381,30 @@ export const InvoicingView: React.FC<InvoicingViewProps> = ({
                         </IconButton>
                       )}
 
-                      <IconButton
-                        label="Modifier"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEditInvoice(inv);
-                        }}
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </IconButton>
+                      {!readOnly && (
+                        <IconButton
+                          label="Modifier"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditInvoice(inv);
+                          }}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </IconButton>
+                      )}
 
-                      <IconButton
-                        label="Supprimer"
-                        tone="danger"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteInvoice(inv.id);
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </IconButton>
+                      {!readOnly && (
+                        <IconButton
+                          label="Supprimer"
+                          tone="danger"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteInvoice(inv.id);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </IconButton>
+                      )}
                     </div>
                   </Td>
                 </Tr>
@@ -421,7 +431,7 @@ export const InvoicingView: React.FC<InvoicingViewProps> = ({
                       <Download className="w-3.5 h-3.5" />
                       PDF
                     </Button>
-                    {selectedInvoice.status !== 'paid' && (
+                    {!readOnly && selectedInvoice.status !== 'paid' && (
                       <Button
                         variant="primary"
                         className="h-[var(--control-height-sm)] px-2"

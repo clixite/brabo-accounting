@@ -16,6 +16,11 @@ dist-ssr
 .env
 .env.*
 !.env.example
+!.env.e2e
+
+# Playwright artifacts
+test-results/
+playwright-report/
 
 # Local deployment secrets (SSH keys, server credentials)
 .deploy/
@@ -25,6 +30,7 @@ __pycache__/
 *.pyc
 venv/
 .venv/
+.pytest_cache/
 
 # Editor directories and files
 .vscode/*

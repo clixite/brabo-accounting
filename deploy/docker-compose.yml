@@ -11,6 +11,31 @@ services:
     networks:
       - proxy
 
+  # Self-hosted OCR (FastAPI + PaddleOCR PP-OCRv5, CPU) — internal only.
+  # Reachable on the Docker network as `http://ocr-server:8000`; the Express
+  # API (`api` container) proxies /api/ocr/* to it, so it is never exposed.
+  ocr-server:
+    build: ./ocr-server
+    container_name: brabo-ocr
+    restart: unless-stopped
+    environment:
+      PADDLE_LANG: latin
+      OCR_DOC_ORIENTATION: "1"
+      OCR_DOC_UNWARPING: "1"
+      OCR_MAX_UPLOAD_MB: "15"
+      OCR_CORS_ORIGINS: ""
+    volumes:
+      - paddle-models:/root/.paddlex
+    deploy:
+      resources:
+        limits:
+          memory: 3g
+    networks:
+      - proxy
+
+volumes:
+  paddle-models:
+
 networks:
   proxy:
     external: true

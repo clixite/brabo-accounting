@@ -13,8 +13,37 @@ Ce dossier contient la configuration de déploiement (non secrète) pour le sous
 |---|---|
 | `brabo.yml` | `/docker/traefik-svsx/config/brabo.yml` (routage Traefik + TLS Let's Encrypt) |
 | `brabo.nginx.conf` | `/etc/nginx/sites-available/brabo.clixite-prod.cloud` (SPA + gzip + cache) |
-| `docker-compose.yml` | `/docker/brabo/docker-compose.yml` (conteneur nginx `brabo-web`) |
+| `docker-compose.yml` | `/docker/brabo/docker-compose.yml` (conteneur nginx `brabo-web` + `ocr-server`) |
 | `dist/` (build local) | `/var/www/brabo.clixite-prod.cloud/dist/` (fichiers statiques) |
+| `ocr-server/` (dossier) | `/docker/brabo/ocr-server/` (source du service OCR) |
+
+## OCR serveur (auto-hébergé)
+
+Le service `ocr-server` (FastAPI + PaddleOCR PP-OCRv5, CPU) tourne sur le réseau Docker
+`brabo-internal` (avec `brabo-api` et `brabo-db`) et n'est **jamais exposé publiquement** :
+le frontend appelle `/api/ocr/*` sur `api.brabo…` (Express), qui proxifie vers
+`http://ocr-server:8000` en envoyant le jeton interne `X-OCR-Token`.
+
+1. Copier la source OCR sur le VPS :
+   ```bash
+   scp -r ocr-server root@76.13.46.55:/docker/brabo-ocr/ocr-server
+   scp deploy/brabo-ocr-compose.yml root@76.13.46.55:/docker/brabo-ocr/docker-compose.yml
+   ```
+2. Générer un jeton interne et le partager entre les deux services :
+   ```bash
+   openssl rand -hex 24   # -> <TOKEN>
+   # /docker/brabo-ocr/.env    : OCR_SERVICE_TOKEN=<TOKEN>
+   # /docker/brabo-api/.env    : OCR_SERVICE_TOKEN=<TOKEN>
+   ```
+3. Reconstruire et redémarrer :
+   ```bash
+   ssh root@76.13.46.55 "cd /docker/brabo-ocr && docker compose up -d --build"
+   ssh root@76.13.46.55 "cd /docker/brabo-api && docker compose up -d --build"
+   ```
+
+Vérification : `curl http://localhost:8000/ocr/health` sur le VPS, puis dans BRABO le badge
+« OCR serveur en ligne » dans le modal Scanner une dépense. Métriques : `GET /metrics`
+sur le conteneur OCR.
 
 ## Déploiement
 ```bash
@@ -31,8 +60,9 @@ scp -r dist/* root@76.13.46.55:/var/www/brabo.clixite-prod.cloud/dist/
 scp deploy/brabo.yml root@76.13.46.55:/docker/traefik-svsx/config/brabo.yml
 scp deploy/brabo.nginx.conf root@76.13.46.55:/etc/nginx/sites-available/brabo.clixite-prod.cloud
 scp deploy/docker-compose.yml root@76.13.46.55:/docker/brabo/docker-compose.yml
+scp -r ocr-server root@76.13.46.55:/docker/brabo/ocr-server
 
-# 5. Démarrer le conteneur
+# 5. Démarrer les conteneurs
 ssh root@76.13.46.55 "cd /docker/brabo && docker compose up -d"
 ```
 

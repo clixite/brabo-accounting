@@ -110,6 +110,31 @@ CREATE TABLE IF NOT EXISTS invoice_lines (
 CREATE INDEX IF NOT EXISTS idx_invoice_lines_invoice ON invoice_lines(invoice_id);
 
 -- ---------------------------------------------------------------------------
+-- Counterparty master data (clients / suppliers) — enriched from VIES + KBO
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS clients (
+  id            TEXT PRIMARY KEY,
+  tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name          TEXT NOT NULL,
+  vat_country   TEXT,                     -- BE / FR / DE … (VIES)
+  vat_number    TEXT,                     -- national VAT (e.g. BE0202239951)
+  bce_digits    TEXT,                     -- 10-digit Belgian BCE when BE
+  street        TEXT, number TEXT, box TEXT, postal_code TEXT, city TEXT,
+  country       TEXT NOT NULL DEFAULT 'Belgique',
+  email         TEXT,
+  peppol_endpoint_id TEXT,
+  registry_status TEXT,                   -- active / ceased / unknown (public registry)
+  legal_form    TEXT,
+  risk_score    INT,                       -- 0..100 (public-register counterparty risk)
+  risk_flags    JSONB NOT NULL DEFAULT '[]'::jsonb,
+  kyc_level     TEXT NOT NULL DEFAULT 'none',  -- none | basic | verified
+  enriched_at   TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_clients_tenant ON clients(tenant_id, name);
+
+-- ---------------------------------------------------------------------------
 -- Purchases / expenses
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS purchases (
@@ -169,3 +194,99 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit_logs(tenant_id, created_at DESC);
+
+-- ---------------------------------------------------------------------------
+-- Platform — firms (fiduciaires), plans, subscriptions, platform admins
+-- ---------------------------------------------------------------------------
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS firm_id UUID;
+
+CREATE TABLE IF NOT EXISTS firms (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  itaa_firm_number TEXT,
+  bce_digits TEXT UNIQUE NOT NULL,
+  vat_number TEXT,
+  street TEXT, number TEXT, box TEXT, postal_code TEXT, city TEXT,
+  country TEXT NOT NULL DEFAULT 'Belgique',
+  brand JSONB NOT NULL DEFAULT '{}'::jsonb,
+  status TEXT NOT NULL DEFAULT 'trial',
+  plan_id UUID,
+  trial_ends_at TIMESTAMPTZ,
+  created_by_platform_admin_id UUID,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_firms_status ON firms(status);
+
+CREATE TABLE IF NOT EXISTS plans (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  price_monthly_eur NUMERIC(10,2) NOT NULL DEFAULT 0,
+  price_per_dossier_eur NUMERIC(10,2) NOT NULL DEFAULT 0,
+  max_dossiers INT,
+  max_users INT NOT NULL DEFAULT 5,
+  features JSONB NOT NULL DEFAULT '[]'::jsonb,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS firm_memberships (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  firm_id UUID NOT NULL REFERENCES firms(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'FIRM_ADMIN',
+  status TEXT NOT NULL DEFAULT 'active',
+  extra_permissions JSONB NOT NULL DEFAULT '[]'::jsonb,
+  denied_permissions JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (firm_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_firm_memberships_firm ON firm_memberships(firm_id);
+
+CREATE TABLE IF NOT EXISTS firm_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  firm_id UUID NOT NULL REFERENCES firms(id) ON DELETE CASCADE,
+  plan_id UUID NOT NULL REFERENCES plans(id),
+  status TEXT NOT NULL DEFAULT 'trialing',
+  current_period_start DATE,
+  current_period_end DATE,
+  dossier_count INT NOT NULL DEFAULT 0,
+  overage_dossiers INT NOT NULL DEFAULT 0,
+  provider_ref TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_firm_subscriptions_firm ON firm_subscriptions(firm_id);
+
+CREATE TABLE IF NOT EXISTS platform_admins (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'PLATFORM_ADMIN',
+  status TEXT NOT NULL DEFAULT 'active',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS platform_audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sequence INT NOT NULL,
+  actor_user_id UUID,
+  actor_email TEXT,
+  actor_role TEXT,
+  action TEXT NOT NULL,
+  entity TEXT NOT NULL,
+  entity_id TEXT,
+  entity_label TEXT,
+  before JSONB,
+  after JSONB,
+  previous_hash TEXT,
+  hash TEXT,
+  ip TEXT,
+  user_agent TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_platform_audit_seq ON platform_audit_logs(sequence DESC);
+CREATE INDEX IF NOT EXISTS idx_tenants_firm ON tenants(firm_id);

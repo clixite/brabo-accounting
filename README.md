@@ -9,20 +9,44 @@
 ![Peppol](https://img.shields.io/badge/Peppol_BIS_3.0-EN_16931-emerald.svg)
 ![React](https://img.shields.io/badge/React_19-TypeScript_Tailwind-blue.svg)
 ![PWA](https://img.shields.io/badge/PWA-installable-9cf.svg)
-![Tests](https://img.shields.io/badge/tests-122-green.svg)
+![Tests](https://img.shields.io/badge/tests-153-green.svg)
 
 ---
 
 ## 🎯 Vision produit
 
-BRABO sert **deux publics** dans un même socle, **strictement séparé et sécurisé** :
+BRABO sert **trois publics** dans un même socle SaaS, **strictement séparé et sécurisé** (hiérarchie 3 niveaux) :
 
 | Espace | Rôle | Ce qu'il fait |
 |---|---|---|
+| **Super Admin** | Créateur de la plateforme | Crée et pilote les **fiduciaires** (firmes), les plans d'abonnement, le white-label, la facturation et l'audit ; **impersonne** une firme pour l'inspecter. |
+| **Cabinet** | Expert-comptable ITAA | Pilote tous ses dossiers, **optimise** la stratégie fiscale, **déclare** (TVA, listing), gère les droits d'accès clients et son équipe. |
 | **Client** | Gérant d'entreprise | Encode facilement (OCR, auto-encodage bancaire), consulte ses rapports, dépose sa TVA **si le cabinet l'y autorise**. |
-| **Cabinet** | Expert-comptable ITAA | Pilote tous ses dossiers, **optimise** la stratégie fiscale, **déclare** (TVA, listing), gère les droits d'accès clients. |
 
-La partie encodage + optimisation basique est **automatique** ; le fiscaliste **améliore, optimise et déclare** ; le client peut **s'auto-déclarer** si le comptable lui a donné l'accès.
+La partie encodage + optimisation basique est **automatique** ; le fiscaliste **améliore, optimise et déclare** ; le client peut **s'auto-déclarer** si le comptable lui a donné l'accès ; le **créateur** provisionne des fiduciaires en ~2 minutes.
+
+### 🧭 Console Super Admin (nouveau — Phase 1 du socle SaaS)
+
+`Super Admin` est la **couche plateforme** de BRABO OS : un poste de pilotage global pour
+vous (le créateur). Elle ajoute au modèle existant client ↔ cabinet un niveau supérieur :
+
+```
+Plateforme (Super Admin)  →  Fiduciaires (firms ITAA)  →  Clients (tenants)
+```
+
+- **Fiduciaires** : création guidée (identité ITAA, BCE mod97, white-label `slug.brabo.app` +
+  couleur, plan, administrateur FIRM_ADMIN) en une étape ; liste/recherche, suspension/réactivation,
+  détail (abonnement, équipe, dossiers).
+- **Impersonation auditée** : « Voir en tant que firme » bascule sur le portail cabinet de la firme,
+  avec bandeau de sortie et journalisation dans l'audit plateforme.
+- **Plans & facturation** : offres SaaS (prix/mois + prix/dossier + quotas + feature flags).
+- **Journal d'audit plateforme** : chaîne SHA-256 indépendante, vérifiable (`verifyPlatformChain`).
+
+Le modèle de données, le RBAC 3 niveaux (`PLATFORM_*`, `FIRM_*`) et les repositories
+(`dbStore.platform.*`) sont définis dans `src/server/types/db.ts` et `src/server/services/dbStore.ts`.
+Le schéma PostgreSQL de production correspondant (`firms`, `plans`, `firm_memberships`,
+`firm_subscriptions`, `platform_admins`, `platform_audit_logs` + `tenants.firm_id`) et les endpoints
+REST (`/api/platform/*`, `/api/firm/*`) sont dans `server/schema.sql` et `server/index.js`.
 
 ---
 
@@ -95,9 +119,39 @@ La partie encodage + optimisation basique est **automatique** ; le fiscaliste **
 
 - **Frontend** : React 19 + TypeScript + Vite + Tailwind CSS v4.
 - **État & données** : store multi-tenant maison (IndexedDB/localStorage/memory) + session React.
+- **Backend** : Express + PostgreSQL (`server/`) — ledger persistant + proxy OCR.
+- **OCR serveur** : `ocr-server/` — FastAPI + **PaddleOCR PP-OCRv5** (CPU, Apache 2.0), 100 % onboardé.
 - **Docs** : jsPDF + autotable (PDF), QRCode (SEPA), canvas-confetti.
 - **Icons** : Lucide React.
 - **Langues** : Français (BE), Nederlands (BE), English.
+
+---
+
+## 🔎 OCR serveur auto-hébergé (`ocr-server/`)
+
+Le module « Scanner une dépense » branche un vrai OCR de factures qui **tourne sur votre
+serveur** — aucune donnée client ne part vers un cloud :
+
+```
+Navigateur ── POST /api/ocr/extract ──▶ API Express (token partagé)
+                                            │  proxy interne (réseau Docker)
+                                            ▼
+                                     ocr-server (FastAPI + PaddleOCR PP-OCRv5, CPU)
+                                            │  extraction FR/NL/EN
+                                            ▼
+                            fournisseur · n° TVA/BCE (mod97) · n° facture · dates ·
+                            IBAN · OGM (mod97) · HTVA/TVA/TVAC · taux TVA ·
+                            suggestion PCMN + déductibilité CIR92
+```
+
+- **Moteur** : PaddleOCR PP-OCRv5 (modèle latin FR/NL/EN), orientation + dégauchissement, PDF ≤ 5 pages.
+- **Règles belges** : BCE/OGM modulo 97, totaux TVA, suggestion PCMN/déductibilité côté serveur.
+- **Frontend** : upload photo/PDF → champs pré-remplis + badges de confiance par champ +
+  liste des corrections humaines (traçabilité piste d'audit) ; **fallback démo hors-ligne** si le serveur est injoignable.
+- **Déploiement** : `docker compose -f docker-compose.dev.yml up --build` (OCR + API + Postgres),
+  ou sur le VPS via `deploy/` (service `ocr-server`, réseau Docker interne uniquement).
+- **Config** : `VITE_OCR_API_URL` (surcharge directe) sinon routage automatique via `VITE_API_URL` → `/api/ocr`.
+  Détails dans `ocr-server/README.md`.
 
 ---
 
@@ -131,7 +185,9 @@ npm run build
 npm run test:run
 ```
 
-> **Démo** : l'écran de connexion propose deux entrées — « Espace Client » (gérant Brabo) et « Espace Cabinet » (expert-comptable ITAA). Le store se peuple automatiquement (3 dossiers clients, mandats fiduciaires).
+> **Démo** : l'écran de connexion propose trois entrées — « Super Admin » (créateur de la plateforme),
+> « Espace Client » (gérant Brabo) et « Espace Cabinet » (expert-comptable ITAA). Le store se peuple
+> automatiquement (3 dossiers clients rattachés à la firme démo, 3 plans SaaS, 1 administrateur plateforme).
 
 ---
 

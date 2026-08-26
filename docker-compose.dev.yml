@@ -1,0 +1,69 @@
+# BRABO — local development stack (OCR + API + PostgreSQL)
+#
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# Services:
+#   ocr-server  FastAPI + PaddleOCR PP-OCRv5 (CPU) — internal only
+#   api         Express backend (proxies /api/ocr/* to ocr-server)
+#   db          PostgreSQL
+#
+# Frontend (Vite) then runs with:
+#   VITE_API_URL=http://localhost:4000   VITE_API_TOKEN=brabo-dev-token
+
+services:
+  ocr-server:
+    build: ./ocr-server
+    container_name: brabo-ocr
+    restart: unless-stopped
+    environment:
+      PADDLE_LANG: latin
+      OCR_DOC_ORIENTATION: "1"
+      OCR_DOC_UNWARPING: "1"
+      OCR_MAX_UPLOAD_MB: "15"
+      OCR_SERVICE_TOKEN: ${OCR_SERVICE_TOKEN:-brabo-ocr-dev-token}
+    volumes:
+      - paddle-models:/home/ocr/.paddlex
+    deploy:
+      resources:
+        limits:
+          memory: 3g
+    networks:
+      - brabo
+
+  api:
+    build: ./server
+    container_name: brabo-api
+    restart: unless-stopped
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgres://brabo:brabo@db:5432/brabo
+      BRABO_API_TOKEN: ${BRABO_API_TOKEN:-brabo-dev-token}
+      OCR_SERVICE_URL: http://ocr-server:8000
+      OCR_SERVICE_TOKEN: ${OCR_SERVICE_TOKEN:-brabo-ocr-dev-token}
+    ports:
+      - "4000:4000"
+    depends_on:
+      - ocr-server
+      - db
+    networks:
+      - brabo
+
+  db:
+    image: postgres:16-alpine
+    container_name: brabo-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: brabo
+      POSTGRES_PASSWORD: brabo
+      POSTGRES_DB: brabo
+    volumes:
+      - brabo-pgdata:/var/lib/postgresql/data
+    networks:
+      - brabo
+
+volumes:
+  paddle-models:
+  brabo-pgdata:
+
+networks:
+  brabo:

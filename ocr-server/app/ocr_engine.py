@@ -45,18 +45,29 @@ class OcrEngine:
             log.info("PaddleOCR %s ready.", self.version)
 
     def health(self) -> dict:
-        try:
-            self._load()
+        """Non-blocking health: never triggers the model load.
+
+        Returns `starting` while the engine is still warming up so probes do
+        not occupy uvicorn concurrency slots during the initial model load.
+        """
+        with self._lock:
+            loaded = self._engine is not None
+        if not loaded:
             return {
-                "status": "ok",
+                "status": "starting",
                 "engine": "paddleocr",
-                "engineVersion": str(self.version),
                 "lang": PADDLE_LANG,
                 "cpu": True,
                 "device": "CPU",
             }
-        except Exception as exc:  # pragma: no cover - environment dependent
-            return {"status": "error", "engine": "paddleocr", "error": str(exc)}
+        return {
+            "status": "ok",
+            "engine": "paddleocr",
+            "engineVersion": str(self.version),
+            "lang": PADDLE_LANG,
+            "cpu": True,
+            "device": "CPU",
+        }
 
     def extract_lines(self, image_path: str) -> tuple[list[dict], int]:
         """OCR an image; return (list of line dicts, page count).

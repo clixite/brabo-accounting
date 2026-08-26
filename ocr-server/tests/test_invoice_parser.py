@@ -1,5 +1,7 @@
 """Tests for the multilingual (FR/NL/EN) invoice field parser."""
 
+import pytest
+
 from app.invoice_parser import OcrLine, parse_invoice
 
 
@@ -26,7 +28,7 @@ FR_LINES = [
     line("Client: BRABO SPRL", 210),
     line("Rue de la Loi 155, 1040 Bruxelles", 230),
     line("IBAN BE68 5390 0754 7034", 250),
-    line("Communication structurée +++123/4567/89012+++", 270),
+    line("Communication structurée +++000/0001/23470+++", 270),
     line("Fibre Pro Bizz 1 Gbps ................. 145,00", 310),
     line("Pack Mobile 5G ........................ 100,00", 330),
     line("Sous-total HTVA ....................... 245,00", 350),
@@ -46,7 +48,7 @@ def test_french_invoice_full_extraction():
     assert vals["invoiceDate"] == "2026-02-12"
     assert vals["dueDate"] == "2026-03-14"
     assert vals["iban"] == "BE68539007547034"
-    assert vals["structuredCommunication"] == "+++123/4567/89012+++"
+    assert vals["structuredCommunication"] == "+++000/0001/23470+++"
     assert vals["totalExclVat"] == 245.00
     assert vals["vatRate"] == 21
     assert vals["vatAmount"] == 51.45
@@ -77,7 +79,7 @@ NL_LINES = [
     line("Totaal excl. btw ....................... 89,99", 330),
     line("BTW 21% ................................ 18,90", 350),
     line("Totaal incl. btw ....................... 108,89", 370),
-    line("Mededeling: +++123/4567/89012+++", 390),
+    line("Mededeling: +++000/0001/23470+++", 390),
 ]
 
 
@@ -94,7 +96,7 @@ def test_dutch_invoice_full_extraction():
     assert vals["vatRate"] == 21
     assert vals["vatAmount"] == 18.90
     assert vals["totalInclVat"] == 108.89
-    assert vals["structuredCommunication"] == "+++123/4567/89012+++"
+    assert vals["structuredCommunication"] == "+++000/0001/23470+++"
 
     assert result["warnings"] == [], result["warnings"]
 
@@ -198,3 +200,177 @@ def test_payment_terms_detected():
     ]
     result = parse_invoice(lines)
     assert values(result).get("paymentTermsDays") == 30
+
+
+def test_dotted_leaders_split_amounts():
+    """OCR often splits '<label> ...... 245,00' into two lines: keep the totals."""
+    lines = [
+        line("Proximus SA", 40),
+        line("TVA BE 0202.239.951", 110),
+        line("Sous-total HTVA ..............", 350),
+        line("245,00", 366),  # the amount, on its own line right below
+        line("TVA 21% ......................", 390),
+        line("51,45", 406),
+        line("Total TVAC à payer ............", 430),
+        line("296,45", 446),
+    ]
+    result = parse_invoice(lines)
+    vals = values(result)
+
+    assert vals["totalExclVat"] == 245.00
+    assert vals["vatAmount"] == 51.45
+    assert vals["totalInclVat"] == 296.45
+    assert vals["vatRate"] == 21
+    assert result["warnings"] == [], result["warnings"]
+
+
+def test_vat_header_line_does_not_steal_from_invoice_number_line():
+    """Regression: 'TVA BE 0202.239.951' must not grab '2026-9912' below it."""
+    lines = [
+        line("Proximus SA", 40, h=30),
+        line("TVA BE 0202.239.951", 110, h=30),
+        line("Facture N° PROX-2026-9912", 150, h=30),
+        line("Sous-total HTVA 245,00", 350, h=30),
+        line("TVA 21% 51,45", 370, h=30),
+        line("Total TVAC à payer 296,45", 390, h=30),
+    ]
+    result = parse_invoice(lines)
+    vals = values(result)
+
+    assert vals["vatAmount"] == 51.45
+    assert vals["totalInclVat"] == 296.45
+    assert vals["invoiceNumber"] == "PROX-2026-9912"
+    assert result["warnings"] == [], result["warnings"]
+
+
+def test_merged_vat_keyword_without_space():
+    """OCR often merges 'TVA 21%' into 'TVA21%' — the keyword must still match."""
+    lines = [
+        line("Proximus SA", 40),
+        line("TVA BE 0202.239.951", 110),
+        line("Sous-total HTVA 245,00", 350),
+        line("TVA21% 51,45", 370),
+        line("Total TVAC à payer 296,45", 390),
+    ]
+    result = parse_invoice(lines)
+    vals = values(result)
+
+    assert vals["vatAmount"] == 51.45
+    assert vals["vatRate"] == 21
+    assert vals["totalInclVat"] == 296.45
+
+
+def test_invoice_number_strips_leading_symbols():
+    """OCR artifacts ('°PROX-2026-9912') must not pollute the invoice number."""
+    lines = [
+        line("Proximus SA", 40),
+        line("Facture N° °PROX-2026-9912", 150),
+        line("Total TVAC à payer 296,45", 390),
+    ]
+    result = parse_invoice(lines)
+    assert values(result)["invoiceNumber"] == "PROX-2026-9912"
+
+
+def test_supplier_skips_disclaimer_and_prefers_real_company():
+    """'provided by … GmbH' is a label — pick the actual supplier line above it."""
+    lines = [
+        line("Digital Charging Solutions GmbH", 40, h=30),
+        line("provided by Digital Charging Solutions GmbH", 80, h=14),
+        line("BE 8786.846.477", 110),
+        line("Invoice number: DC-2025-1234", 150),
+        line("Total to pay 45,00", 300),
+    ]
+    result = parse_invoice(lines)
+    vals = values(result)
+    assert vals["supplierName"] == "Digital Charging Solutions GmbH"
+    assert vals["invoiceNumber"] == "DC-2025-1234"
+
+
+def test_supplier_strips_disclaimer_prefix_when_it_is_the_only_name():
+    """When the only company line is a disclaimer, the prefix must be stripped."""
+    lines = [
+        line("provided by Digital Charging Solutions GmbH", 40, h=24),
+        line("BE 8786.846.477", 110),
+        line("Total to pay 45,00", 300),
+    ]
+    result = parse_invoice(lines)
+    assert values(result)["supplierName"] == "Digital Charging Solutions GmbH"
+
+
+def test_invoice_number_rejects_label_words():
+    """'fiscal' is a label, not a reference; a coded reference is accepted."""
+    lines = [
+        line("Supplier NV", 40),
+        line("BE 0477.472.701", 110),
+        line("Reference: fiscal", 150),
+        line("Invoice no. DC-2025-1234", 170),
+        line("Total to pay 45,00", 300),
+    ]
+    vals = values(parse_invoice(lines))
+    assert vals["invoiceNumber"] == "DC-2025-1234"
+
+
+def test_supplier_prefers_larger_font_legal_form():
+    """The company name uses the largest font and a legal form."""
+    lines = [
+        line("TOTALENERGIES MARKETING BELGIUM NV", 40, h=34),
+        line("Chaussée de Charleroi 112, 1060 Bruxelles", 70, h=14),
+        line("BE 0403.448.140", 100),
+        line("Facture N° TE-2025-0789", 150),
+        line("Total TVAC 50,00", 300),
+    ]
+    vals = values(parse_invoice(lines))
+    assert vals["supplierName"] == "TOTALENERGIES MARKETING BELGIUM NV"
+
+
+def test_total_accentuated_and_merged_payer():
+    """'Total à payer' (accent) and 'Totalpayer' (merged) must both be totals."""
+    lines = [
+        line("Supplier NV", 40),
+        line("BE 0477.472.701", 110),
+        line("Sous-total HTVA 37,19", 300),
+        line("TVA 21% 7,81", 320),
+        line("Total à payer 45,00", 340),
+    ]
+    vals = values(parse_invoice(lines))
+    assert vals["totalInclVat"] == 45.00
+    assert vals["vatAmount"] == 7.81
+
+    merged = [
+        line("Supplier NV", 40),
+        line("BE 0477.472.701", 110),
+        line("Sous-total HTVA 37,19", 300),
+        line("TVA 21% 7,81", 320),
+        line("Totalpayer 45,00", 340),
+    ]
+    vals2 = values(parse_invoice(merged))
+    assert vals2["totalInclVat"] == 45.00
+
+
+def test_cross_derives_missing_amounts():
+    """Given only TVAC + rate, HTVA and TVA must be derived coherently."""
+    lines = [
+        line("Supplier NV", 40),
+        line("BE 0477.472.701", 110),
+        line("TVA 21%", 300),
+        line("Total à payer 121,00", 340),
+    ]
+    vals = values(parse_invoice(lines))
+    assert vals["totalInclVat"] == 121.00
+    assert vals["vatRate"] == 21
+    assert vals["totalExclVat"] == pytest.approx(100.0, abs=0.02)
+    assert vals["vatAmount"] == pytest.approx(21.0, abs=0.02)
+
+
+def test_grand_total_by_position_fallback():
+    """No recognized label: the largest bottom amount is the grand total."""
+    lines = [
+        line("Supplier NV", 40),
+        line("BE 0477.472.701", 110),
+        line("item line .................. 12,50", 300),
+        line("another .................... 25,00", 330),
+        line("129,99", 500),  # bottom-right total, no keyword
+    ]
+    vals = values(parse_invoice(lines))
+    assert vals["totalInclVat"] == 129.99
+    assert any("position" in w for w in parse_invoice(lines)["warnings"])

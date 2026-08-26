@@ -3,7 +3,7 @@ import {
   ArrowRight,
   Building2,
   Fingerprint,
-  Landmark,
+  Gauge,
   Loader2,
   Lock,
   Mail,
@@ -12,18 +12,20 @@ import {
   Users,
 } from 'lucide-react';
 import { useSession } from '../../state/SessionContext';
+import type { DemoProfile } from '../../state/SessionContext';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { validateBCE } from '../../utils/belgianAccounting';
 
 /**
  * Authentication & workspace selector.
- * Two clearly separated entrances: the client workspace and the cabinet
- * (firm) portal — the heart of the "secure, well separated" requirement.
+ * Four clearly separated SaaS profiles — admin fiduciaire, membre fiduciaire,
+ * client admin, client membre — plus the platform console (Super Admin). This is
+ * the visible proof of the 3-tier RBAC hierarchy.
  */
 export function LoginView() {
-  const { loginDemo, loginItsme, loginWithPassword, registerWithPassword } = useSession();
-  const [busy, setBusy] = useState<'client' | 'cabinet' | 'itsme' | 'password' | null>(null);
+  const { loginDemo, loginItsme, loginPlatform, loginWithPassword, registerWithPassword } = useSession();
+  const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -35,12 +37,33 @@ export function LoginView() {
   const [companyName, setCompanyName] = useState('');
   const [bce, setBce] = useState('');
 
-  const run = async (kind: 'client' | 'cabinet' | 'itsme') => {
-    setBusy(kind);
+  const runProfile = async (profile: DemoProfile) => {
+    setBusy(profile);
     setError(null);
     try {
-      if (kind === 'itsme') await loginItsme();
-      else await loginDemo(kind);
+      await loginDemo(profile);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur de connexion.');
+      setBusy(null);
+    }
+  };
+
+  const runItsme = async () => {
+    setBusy('itsme');
+    setError(null);
+    try {
+      await loginItsme();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur de connexion.');
+      setBusy(null);
+    }
+  };
+
+  const runPlatform = async () => {
+    setBusy('platform');
+    setError(null);
+    try {
+      await loginPlatform();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur de connexion.');
       setBusy(null);
@@ -117,49 +140,112 @@ export function LoginView() {
           </p>
         </div>
 
-        {/* Workspace selector */}
-        <div className="grid sm:grid-cols-2 gap-4">
+        {/* Workspace selector — 4 profils SaaS + console plateforme */}
+        <div className="space-y-4">
           <button
-            onClick={() => run('client')}
+            onClick={runPlatform}
             disabled={busy !== null}
-            className="group relative rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 text-left transition-colors hover:border-[var(--accent-soft-border)] hover:bg-[var(--bg-hover)] shadow-[var(--shadow)] disabled:opacity-50 disabled:cursor-not-allowed"
+            data-testid="login-super-admin"
+            className="group relative w-full rounded-[var(--radius-lg)] border border-[var(--state-info-border)] bg-[var(--bg-surface)] p-5 text-left transition-colors hover:border-[var(--state-info-text)] hover:bg-[var(--bg-hover)] shadow-[var(--shadow)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <div className="flex items-center gap-3 mb-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] bg-[var(--accent-soft)] text-[var(--accent-solid)] border border-[var(--accent-soft-border)]">
-                <Building2 className="h-5 w-5" />
+            <div className="flex items-center gap-3 mb-2">
+              <span className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] bg-[var(--state-info-bg)] text-[var(--state-info-text)] border border-[var(--state-info-border)]">
+                <Gauge className="h-5 w-5" />
               </span>
-              <span className="text-[length:var(--text-sm)] font-semibold text-[var(--text-primary)]">Espace Client</span>
+              <span className="text-[length:var(--text-sm)] font-semibold text-[var(--text-primary)]">Super Admin</span>
             </div>
-            <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)] leading-relaxed mb-4">
-              Encodage auto, facturation, dépenses, TVA. Connexion en tant que gérant
-              d'entreprise (Brabo Digital Solutions).
+            <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)] leading-relaxed">
+              Console plateforme : créez et pilotez les fiduciaires, les plans d'abonnement, le white-label et l'audit.
             </p>
-            <span className="inline-flex items-center gap-1.5 text-[length:var(--text-xs)] font-semibold text-[var(--accent-solid)]">
-              {busy === 'client' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
-              Entrer
-            </span>
           </button>
 
-          <button
-            onClick={() => run('cabinet')}
-            disabled={busy !== null}
-            className="group relative rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 text-left transition-colors hover:border-[var(--state-positive-border)] hover:bg-[var(--bg-hover)] shadow-[var(--shadow)] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] bg-[var(--state-positive-bg)] text-[var(--state-positive-text)] border border-[var(--state-positive-border)]">
-                <Landmark className="h-5 w-5" />
+          <div className="grid sm:grid-cols-2 gap-4">
+            <button
+              onClick={() => runProfile('admin-fiduciaire')}
+              disabled={busy !== null}
+              data-testid="login-admin-fiduciaire"
+              className="group relative rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 text-left transition-colors hover:border-[var(--state-positive-border)] hover:bg-[var(--bg-hover)] shadow-[var(--shadow)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] bg-[var(--state-positive-bg)] text-[var(--state-positive-text)] border border-[var(--state-positive-border)]">
+                  <ShieldCheck className="h-5 w-5" />
+                </span>
+                <span className="text-[length:var(--text-sm)] font-semibold text-[var(--text-primary)]">Admin fiduciaire</span>
+              </div>
+              <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)] leading-relaxed mb-4">
+                Administrateur du cabinet : pilote tous les dossiers, gère l'équipe et les droits de déclaration TVA.
+              </p>
+              <span className="inline-flex items-center gap-1.5 text-[length:var(--text-xs)] font-semibold text-[var(--state-positive-text)]">
+                {busy === 'admin-fiduciaire' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
+                Entrer
               </span>
-              <span className="text-[length:var(--text-sm)] font-semibold text-[var(--text-primary)]">Espace Cabinet</span>
-            </div>
-            <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)] leading-relaxed mb-4">
-              Pilotage multi-dossiers, stratégie fiscale, déclarations et droits
-              d'accès clients. Connexion en tant qu'expert-comptable ITAA.
-            </p>
-            <span className="inline-flex items-center gap-1.5 text-[length:var(--text-xs)] font-semibold text-[var(--state-positive-text)]">
-              {busy === 'cabinet' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
-              Entrer
-            </span>
-          </button>
+            </button>
+
+            <button
+              onClick={() => runProfile('membre-fiduciaire')}
+              disabled={busy !== null}
+              data-testid="login-membre-fiduciaire"
+              className="group relative rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 text-left transition-colors hover:border-[var(--state-positive-border)] hover:bg-[var(--bg-hover)] shadow-[var(--shadow)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] bg-[var(--state-positive-bg)] text-[var(--state-positive-text)] border border-[var(--state-positive-border)]">
+                  <Users className="h-5 w-5" />
+                </span>
+                <span className="text-[length:var(--text-sm)] font-semibold text-[var(--text-primary)]">Membre fiduciaire</span>
+              </div>
+              <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)] leading-relaxed mb-4">
+                Collaborateur du cabinet : consulte et prépare les dossiers, sans administration d'équipe.
+              </p>
+              <span className="inline-flex items-center gap-1.5 text-[length:var(--text-xs)] font-semibold text-[var(--state-positive-text)]">
+                {busy === 'membre-fiduciaire' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
+                Entrer
+              </span>
+            </button>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <button
+              onClick={() => runProfile('client-admin')}
+              disabled={busy !== null}
+              data-testid="login-client-admin"
+              className="group relative rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 text-left transition-colors hover:border-[var(--accent-soft-border)] hover:bg-[var(--bg-hover)] shadow-[var(--shadow)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] bg-[var(--accent-soft)] text-[var(--accent-solid)] border border-[var(--accent-soft-border)]">
+                  <Building2 className="h-5 w-5" />
+                </span>
+                <span className="text-[length:var(--text-sm)] font-semibold text-[var(--text-primary)]">Client Admin</span>
+              </div>
+              <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)] leading-relaxed mb-4">
+                Gérant d'entreprise : encodage, facturation, dépenses, TVA et paramètres de sa société.
+              </p>
+              <span className="inline-flex items-center gap-1.5 text-[length:var(--text-xs)] font-semibold text-[var(--accent-solid)]">
+                {busy === 'client-admin' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
+                Entrer
+              </span>
+            </button>
+
+            <button
+              onClick={() => runProfile('client-membre')}
+              disabled={busy !== null}
+              data-testid="login-client-membre"
+              className="group relative rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 text-left transition-colors hover:border-[var(--accent-soft-border)] hover:bg-[var(--bg-hover)] shadow-[var(--shadow)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] bg-[var(--accent-soft)] text-[var(--accent-solid)] border border-[var(--accent-soft-border)]">
+                  <UserPlus className="h-5 w-5" />
+                </span>
+                <span className="text-[length:var(--text-sm)] font-semibold text-[var(--text-primary)]">Client membre</span>
+              </div>
+              <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)] leading-relaxed mb-4">
+                Employé : déclare ses notes de frais et consulte les factures (accès limité).
+              </p>
+              <span className="inline-flex items-center gap-1.5 text-[length:var(--text-xs)] font-semibold text-[var(--accent-solid)]">
+                {busy === 'client-membre' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
+                Entrer
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* itsme */}
@@ -171,7 +257,7 @@ export function LoginView() {
               <div className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Identité numérique belge (eIDAS — simulation démo)</div>
             </div>
           </div>
-          <Button variant="secondary" onClick={() => run('itsme')} disabled={busy !== null}>
+          <Button variant="secondary" onClick={runItsme} disabled={busy !== null}>
             {busy === 'itsme' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Fingerprint className="h-3.5 w-3.5" />}
             S'identifier
           </Button>
